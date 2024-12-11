@@ -4,7 +4,10 @@ document.addEventListener("DOMContentLoaded", function() {
         const useExtendedChildrenView = false;
 
         const fullNameToNode = getFuncDict(data);
-        
+
+        computeRecursiveLineCount(data);
+        computeRecursiveTouchedVars(data);
+
         if (useExtendedChildrenView) {
             data = extendChildren(data, fullNameToNode);
         }
@@ -47,7 +50,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
 
         node.append('circle')
-            .attr('r', 5)
+            .attr('r', d => d.data.metadata.line_count > 100 ? 6 : 2)
             .attr('status', d => d.data.metadata.error ? 'error' : 'ok')
             .attr('is-external-function', d => d.data.metadata.is_external_function)
             .attr('is-std-function', d => d.data.metadata.is_std_function)
@@ -69,6 +72,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 ...d.data.other_calls.map(call => fullNameToNode[call].name)
             ]
 
+            touchedVars = sortVars(d.data.metadata.touched_global_vars);
+            recursivelyTouchedVars = sortVars(d.data.metadata.recursive_touched_global_vars);
+
             d3.select('#info')
                 .html(`
                     <h2>${d.data.name}</h2>
@@ -83,7 +89,15 @@ document.addEventListener("DOMContentLoaded", function() {
                         ${calledBy.map(node => `<li>${node.name}</li>`).join('')}
                         </ul>` : ''}
                     <h3>Metadata</h3>
-                    ${enumDict(d.data.metadata, (key, val) => `<p><b>${key}</b> ${escape(val)}</p>`)}
+                        ${enumDict(d.data.metadata, (key, val) => `<p><b>${key}</b> ${escape(val)}</p>`)}
+                    <h3>Touched global variables (${touchedVars.length})</h3>
+                        <ul>
+                        ${touchedVars.map(printVar).join('')}
+                        </ul>
+                    <h3>Recursively touched vars (${recursivelyTouchedVars.length})</h3>
+                        <ul>
+                        ${recursivelyTouchedVars.map(printVar).join('')}
+                        </ul>
                 `);
 
             function escape(obj) {    
@@ -95,8 +109,34 @@ document.addEventListener("DOMContentLoaded", function() {
                 return Object.entries(dict)
                     .filter(([key, value]) => !!value)
                     .filter(([key, value]) => key !== 'url')
+                    .filter(([key, value]) => key !== 'touched_global_vars')
+                    .filter(([key, value]) => key !== 'recursive_touched_global_vars')
                     .map(([key, value]) => callback(key, value)).join('');
 
+            }
+
+            function printVar(varStr) {
+                const varName = varStr.split('::')[0];
+                const varModule = varStr.split('::')[1].split(': ')[0];
+                const varType = escape(varStr.split(': ')[1]);
+
+                return `<li>
+                    <span class="var-name">${varName}</span>::<span class="var-module">${varModule}</span>: 
+                    <span class="var-type">${varType}</span>
+                </li>`;
+            }
+            
+            function sortVars(vars){
+                vars = vars.sort((a, b) => {
+                    const aName = a.split('::')[0];
+                    const bName = b.split('::')[0];
+
+                    priority_a = a.includes('[') ? 1 : 0;
+                    priority_b = b.includes('[') ? 1 : 0;
+
+                    return priority_a != priority_b ? priority_b - priority_a : aName.localeCompare(bName);
+                });
+                return vars;
             }
         }
 
@@ -147,6 +187,43 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             });
         }
+
+        function computeRecursiveLineCount(data) {
+            function computeNode(node) {
+                node.metadata.recursive_line_count = node.metadata.line_count;
+                
+                node.children.forEach(child => {
+                    computeNode(child);
+                    node.metadata.recursive_line_count += child.metadata.recursive_line_count;
+                });
+            }
+            computeNode(data);
+        }
+
+        function computeRecursiveTouchedVars(data) {
+            function computeNode(node) {
+                if (node.metadata.recursive_touched_global_vars) 
+                    return; 
+
+                node.metadata.recursive_touched_global_vars = [...node.metadata.touched_global_vars];
+                
+                calledChildren = [
+                    ...node.children,
+                    ...node.other_calls.map(call => fullNameToNode[call])
+                ];
+                calledChildren.forEach(child => {
+                    computeNode(child);
+                    node.metadata.recursive_touched_global_vars = [
+                        ...node.metadata.recursive_touched_global_vars,
+                        ...child.metadata.recursive_touched_global_vars
+                    ];
+                });
+
+                node.metadata.recursive_touched_global_vars = [...new Set(node.metadata.recursive_touched_global_vars)];
+            }
+            computeNode(data);
+        }
         
+
     });
 });

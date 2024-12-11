@@ -80,3 +80,19 @@ svg {
 g.node {
     cursor: pointer;
 }
+
+span.var-name {
+    font-weight: bold;
+    color: #f88;
+}
+
+span.var-module {
+    font-style: italic;
+    font-size: small;
+    color: #88f;
+}
+
+span.var-type {
+    font-style: italic;
+    color: #4CAF50;
+}
