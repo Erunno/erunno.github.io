@@ -63,7 +63,7 @@
       });
 
       for (let i = 0; i < filesToBeLoaded; i++) {
-        $.getJSON(`intervals_${i}.json`, function(data) {
+        $.getJSON(`home-video-index/intervals_${i}.json`, function(data) {
           console.log(`Loaded JSON ${i}:`, data);
           data.intervals.forEach(interval => {
             const m = moment(interval.date, "DD.MM.YYYY");
