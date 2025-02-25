@@ -36,7 +36,7 @@
         if (dateVal) {
           const [year, month, day] = dateVal.split("-");
           const czechDate = `${day}.${month}.${year}`;
-          const closestDates = findNClosestDates(allData, dateVal, 5);
+          const closestDates = findNClosestDates(allData, dateVal, 10);
           
           // display all the data in the table
             const table = $('#datesTable');
@@ -63,7 +63,7 @@
       });
 
       for (let i = 0; i < filesToBeLoaded; i++) {
-        $.getJSON(`/intervals_${i}.json`, function(data) {
+        $.getJSON(`intervals_${i}.json`, function(data) {
           console.log(`Loaded JSON ${i}:`, data);
           data.intervals.forEach(interval => {
             const m = moment(interval.date, "DD.MM.YYYY");
@@ -83,6 +83,7 @@
           loadedFiles++;
           if (loadedFiles === filesToBeLoaded) {
             $('#addBtn').prop('disabled', false).text('Hledat');
+            $('#addBtn').click();
           }
         })
         .catch(function(err) {
@@ -91,6 +92,7 @@
           loadedFiles++;
           if (loadedFiles === filesToBeLoaded) {
             $('#addBtn').prop('disabled', false).text('Hledat');
+            $('#addBtn').click();
           }
         });
       }
