@@ -461,8 +461,16 @@
             // Clear previous visualization
             document.getElementById('networkGraph').innerHTML = '';
             
-            // Setup dimensions
-            const width = 900;
+            // Setup dimensions - make width dynamic based on number of layers
+            const minWidth = d3.select('#networkGraph').node().getBoundingClientRect().width - 2; // Minimum width
+            
+            const minWidthPerLayer = 100; // Width per layer
+            const totalLayersCount = network.layers.length + 1; // Input layer + hidden/output layers
+            
+            const widthPerLayer = Math.max(minWidthPerLayer, minWidth / network.layers.length - 30);
+            const calculatedWidth = Math.max(minWidth, totalLayersCount * widthPerLayer);
+
+            const width = calculatedWidth;
             
             // Calculate the largest layer size to determine height
             const layerSizes = [network.input_size];
@@ -539,7 +547,7 @@
                     .attr('class', 'layer-label')
                     .attr('x', (layerIndex + 1) * layerSpacing)
                     .attr('y', -20)
-                    .text(layerType === 'output' ? 'Output Layer' : `Hidden Layer ${layerIndex + 1}`);
+                    .text(layerType === 'output' ? 'Output Layer' : `Hidden ${layerIndex + 1}`);
                 
                 // Add nodes for this layer
                 layer.neurons.forEach((neuron, neuronIndex) => {
