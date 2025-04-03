@@ -276,6 +276,37 @@
         .single-output-metrics {
             display: none;
         }
+
+        /* Add styles for network statistics */
+        .network-stats {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        .stats-table th, .stats-table td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        
+        .stats-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .stats-table tr.total-row {
+            font-weight: bold;
+            background-color: #e9e9e9;
+        }
     </style>
 </head>
 <body>
@@ -303,6 +334,55 @@
         <div class="network-visualization">
             <h2>Network Visualization</h2>
             <div id="networkGraph"></div>
+            
+            <!-- Add Network Statistics Section -->
+            <div id="networkStats" class="network-stats" style="display: none;">
+                <h3>Network Statistics</h3>
+                
+                <h4>Neuron Usage</h4>
+                <table class="stats-table" id="neuronUsageTable">
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Active Neurons</th>
+                            <th>Total Neurons</th>
+                            <th>Usage %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Will be filled dynamically -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td>Total</td>
+                            <td id="totalActiveNeurons">0</td>
+                            <td id="totalNeurons">0</td>
+                            <td id="totalNeuronUsage">0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <h4>Operation Usage</h4>
+                <table class="stats-table" id="operationTable">
+                    <thead>
+                        <tr>
+                            <th>Operation</th>
+                            <th>Count</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Will be filled dynamically -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td>Useful Operations</td>
+                            <td id="usefulOperations">0</td>
+                            <td id="usefulOperationsPercentage">0%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
         
         <!-- Add test data validation section -->
@@ -452,6 +532,9 @@
                 renderNetwork(network);
                 setupInputControls(network.input_size);
                 document.getElementById('networkControls').style.display = 'block';
+                
+                // Analyze the network connectivity
+                analyzeNetworkConnectivity();
             } catch (error) {
                 alert('Error parsing JSON: ' + error.message);
             }
@@ -710,7 +793,9 @@
 
         function processLayersSequentially(inputValues, layerIndex) {
             if (layerIndex >= network.layers.length) {
-                return; // All layers processed
+                // All layers processed - we don't need to do additional analysis here
+                // as we're only interested in connectivity, not active neurons during a run
+                return;
             }
             
             setTimeout(() => {
@@ -792,14 +877,19 @@
             // Reset visual state (clear both zero and one classes)
             d3.selectAll('.node circle')
                 .classed('active-node-one', false)
-                .classed('active-node-zero', false);
+                .classed('active-node-zero', false)
+                .style('opacity', 1.0);  // Reset opacity
             
             d3.selectAll('.link')
                 .classed('active-link-one', false)
-                .classed('active-link-zero', false);
+                .classed('active-link-zero', false)
+                .style('opacity', 0.6);  // Reset opacity
             
-            // Also clear any hover highlights
+            // Clear any hover highlights
             unhighlightConnections();
+            
+            // Run connectivity analysis again to restore connectivity visualization
+            analyzeNetworkConnectivity();
         }
         
         // Function to highlight a neuron and its connections
@@ -1270,6 +1360,224 @@
                 if (a[i] !== b[i]) return false;
             }
             return true;
+        }
+
+        // New function to analyze network connectivity
+        function analyzeNetworkConnectivity() {
+            // Identify neurons that are structurally connected to outputs
+            const connectedNeurons = new Set();
+            const connectedOperations = {};
+            
+            // Start with output neurons and work backward
+            const outputLayerIndex = network.layers.length - 1;
+            const outputNodes = nodeData.filter(node => node.layer === outputLayerIndex + 1);
+            
+            // BFS queue to traverse the network backward
+            const queue = [...outputNodes];
+            
+            // Mark all output neurons as connected
+            outputNodes.forEach(node => {
+                connectedNeurons.add(node.id);
+                
+                // Count operations
+                if (!connectedOperations[node.operation]) {
+                    connectedOperations[node.operation] = 0;
+                }
+                connectedOperations[node.operation]++;
+            });
+            
+            // Find all neurons that can potentially contribute to output
+            while (queue.length > 0) {
+                const currentNode = queue.shift();
+                
+                // Find all incoming links (neurons that feed into this one)
+                const incomingLinks = linkData.filter(link => link.target.id === currentNode.id);
+                
+                for (const link of incomingLinks) {
+                    const sourceNode = nodeData.find(node => node.id === link.source.id);
+                    
+                    // If this source is already counted, skip it
+                    if (connectedNeurons.has(sourceNode.id)) continue;
+                    
+                    // Mark source as connected to output path
+                    connectedNeurons.add(sourceNode.id);
+                    
+                    // Track operations if it's not an input node
+                    if (sourceNode.type !== 'input') {
+                        if (!connectedOperations[sourceNode.operation]) {
+                            connectedOperations[sourceNode.operation] = 0;
+                        }
+                        connectedOperations[sourceNode.operation]++;
+                        
+                        // Add to queue to continue tracing backward
+                        queue.push(sourceNode);
+                    }
+                }
+            }
+            
+            // Gather statistics on connected vs. total neurons
+            const layerStats = {};
+            let totalNeurons = 0;
+            let totalConnected = 0;
+            
+            // Count input nodes
+            const inputNodes = nodeData.filter(n => n.type === 'input');
+            const connectedInputs = inputNodes.filter(n => connectedNeurons.has(n.id));
+            layerStats['Input'] = {
+                total: inputNodes.length,
+                connected: connectedInputs.length
+            };
+            totalNeurons += inputNodes.length;
+            totalConnected += connectedInputs.length;
+            
+            // Count neurons per hidden layer
+            network.layers.forEach((layer, index) => {
+                const isOutputLayer = index === network.layers.length - 1;
+                const layerName = isOutputLayer ? 'Output' : `Hidden ${index + 1}`;
+                
+                const layerNodes = nodeData.filter(n => n.layer === index + 1);
+                const connectedLayerNodes = layerNodes.filter(n => connectedNeurons.has(n.id));
+                
+                layerStats[layerName] = {
+                    total: layerNodes.length,
+                    connected: connectedLayerNodes.length
+                };
+                
+                totalNeurons += layerNodes.length;
+                totalConnected += connectedLayerNodes.length;
+            });
+            
+            // Count total operations (all operations in the network)
+            const allOperations = {};
+            network.layers.forEach(layer => {
+                layer.neurons.forEach(neuron => {
+                    if (!allOperations[neuron.operation]) {
+                        allOperations[neuron.operation] = 0;
+                    }
+                    allOperations[neuron.operation]++;
+                });
+            });
+            
+            // Display the connectivity statistics
+            updateNetworkConnectivityStats(connectedNeurons, connectedOperations, layerStats, totalConnected, totalNeurons, allOperations);
+            
+            // Also visualize the connectivity in the graph
+            visualizeConnectivity(connectedNeurons);
+        }
+        
+        // Update tables with connectivity statistics
+        function updateNetworkConnectivityStats(connectedNeurons, connectedOperations, layerStats, totalConnected, totalNeurons, allOperations) {
+            // Show the statistics container
+            document.getElementById('networkStats').style.display = 'block';
+            
+            // Update the neuron usage table
+            const usageTable = document.getElementById('neuronUsageTable');
+            const usageTableBody = usageTable.querySelector('tbody');
+            usageTableBody.innerHTML = '';
+            
+            // Add rows for each layer
+            Object.entries(layerStats).forEach(([layerName, stats]) => {
+                const percentage = (stats.connected / stats.total * 100).toFixed(1);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${layerName}</td>
+                    <td>${stats.connected}</td>
+                    <td>${stats.total}</td>
+                    <td>${percentage}%</td>
+                `;
+                usageTableBody.appendChild(row);
+            });
+            
+            // Update totals
+            document.getElementById('totalActiveNeurons').textContent = totalConnected;
+            document.getElementById('totalNeurons').textContent = totalNeurons;
+            document.getElementById('totalNeuronUsage').textContent = 
+                (totalConnected / totalNeurons * 100).toFixed(1) + '%';
+            
+            // Update the operation table
+            const operationTable = document.getElementById('operationTable');
+            const operationTableBody = operationTable.querySelector('tbody');
+            operationTableBody.innerHTML = '';
+            
+            // Calculate total operations and useful operations
+            let totalOperationsCount = 0;
+            let totalConnectedOperationsCount = 0;
+            let noOpCount = 0;
+            let connectedNoOpCount = 0;
+            
+            for (const op in allOperations) {
+                totalOperationsCount += allOperations[op];
+                if (op === 'NoOp') {
+                    noOpCount = allOperations[op];
+                }
+            }
+            
+            for (const op in connectedOperations) {
+                totalConnectedOperationsCount += connectedOperations[op];
+                if (op === 'NoOp') {
+                    connectedNoOpCount = connectedOperations[op];
+                }
+            }
+            
+            // Sort operations alphabetically but with NoOp last
+            const sortedOperations = Object.keys(allOperations).sort((a, b) => {
+                if (a === 'NoOp') return 1;
+                if (b === 'NoOp') return -1;
+                return a.localeCompare(b);
+            });
+            
+            // Add rows for each operation
+            sortedOperations.forEach(op => {
+                const totalCount = allOperations[op] || 0;
+                const connectedCount = connectedOperations[op] || 0;
+                const percentage = (connectedCount / totalCount * 100).toFixed(1);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${op}</td>
+                    <td>${connectedCount}/${totalCount}</td>
+                    <td>${percentage}%</td>
+                `;
+                operationTableBody.appendChild(row);
+            });
+            
+            // Update useful operations (total minus NoOp)
+            const totalUsefulOps = totalOperationsCount - noOpCount;
+            const connectedUsefulOps = totalConnectedOperationsCount - connectedNoOpCount;
+            
+            document.getElementById('usefulOperations').textContent = `${connectedUsefulOps}/${totalUsefulOps}`;
+            document.getElementById('usefulOperationsPercentage').textContent = 
+                (connectedUsefulOps / totalUsefulOps * 100).toFixed(1) + '%';
+        }
+        
+        // Visually highlight connected neurons in the graph
+        function visualizeConnectivity(connectedNeurons) {
+            // Visually distinguish connected vs unconnected neurons
+            nodeData.forEach(node => {
+                const isConnected = connectedNeurons.has(node.id);
+                const nodeElement = d3.select(`#${node.id} circle`);
+                
+                if (isConnected) {
+                    nodeElement.style('opacity', 1.0);
+                } else {
+                    // Fade out disconnected neurons
+                    nodeElement.style('opacity', 0.4);
+                }
+            });
+            
+            // Also update links
+            linkData.forEach(link => {
+                const isConnected = connectedNeurons.has(link.target.id) && 
+                                   connectedNeurons.has(link.source.id);
+                const linkElement = d3.select(`#${link.id}`);
+                
+                if (isConnected) {
+                    linkElement.style('opacity', 0.6);
+                } else {
+                    linkElement.style('opacity', 0.2);
+                }
+            });
         }
     </script>
 </body>
