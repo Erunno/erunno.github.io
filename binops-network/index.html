@@ -433,6 +433,11 @@
                             <th>Description</th>
                         </tr>
                         <tr>
+                            <td>MCC</td>
+                            <td id="mccMetric">0</td>
+                            <td>(TP×TN - FP×FN) / √((TP+FP)(TP+FN)(TN+FP)(TN+FN))</td>
+                        </tr>
+                        <tr>
                             <td>Accuracy</td>
                             <td id="accuracyMetric">0%</td>
                             <td>(TP + TN) / Total</td>
@@ -1323,11 +1328,22 @@
                 const specificity = trueNegatives === 0 ? 0 : trueNegatives / (trueNegatives + falsePositives);
                 const f1Score = precision + recall === 0 ? 0 : 2 * (precision * recall) / (precision + recall);
                 
+                // Calculate Matthews Correlation Coefficient (MCC)
+                const numerator = truePositives * trueNegatives - falsePositives * falseNegatives;
+                const denominator = Math.sqrt(
+                    (truePositives + falsePositives) * 
+                    (truePositives + falseNegatives) * 
+                    (trueNegatives + falsePositives) * 
+                    (trueNegatives + falseNegatives)
+                ) || 1; // Avoid division by zero
+                const mcc = numerator / denominator;
+                
                 document.getElementById('accuracyMetric').textContent = (accuracy * 100).toFixed(2) + '%';
                 document.getElementById('precisionMetric').textContent = (precision * 100).toFixed(2) + '%';
                 document.getElementById('recallMetric').textContent = (recall * 100).toFixed(2) + '%';
                 document.getElementById('specificityMetric').textContent = (specificity * 100).toFixed(2) + '%';
                 document.getElementById('f1ScoreMetric').textContent = f1Score.toFixed(4);
+                document.getElementById('mccMetric').textContent = mcc.toFixed(4);
             } else {
                 document.getElementById('singleOutputMetrics').style.display = 'none';
             }
