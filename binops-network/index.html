@@ -165,6 +165,117 @@
             z-index: 10;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
+        
+        /* Test data validation table styles */
+        .test-data-section {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        
+        #testDataJson {
+            width: 100%;
+            height: 80px;
+            font-family: monospace;
+            padding: 8px;
+        }
+        
+        .validation-table {
+            margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .validation-table th, .validation-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .validation-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .validation-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .validation-table .error {
+            background-color: #ffcccb;
+            font-weight: bold;
+        }
+        
+        .validation-table .correct {
+            background-color: #d6f5d6;
+        }
+        
+        .validation-summary {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        /* Confusion matrix styles */
+        .confusion-matrix-container {
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .confusion-matrix {
+            border-collapse: collapse;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .confusion-matrix th, .confusion-matrix td {
+            border: 1px solid #666;
+            padding: 10px 15px;
+        }
+        
+        .confusion-matrix th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .confusion-matrix .highlight-cell {
+            background-color: #e8e8e8;
+        }
+        
+        .confusion-matrix .true-positive {
+            background-color: #d0f0d0;
+        }
+        
+        .confusion-matrix .false-positive {
+            background-color: #f8d0d0;
+        }
+        
+        .confusion-matrix .false-negative {
+            background-color: #f0e0c0;
+        }
+        
+        .confusion-matrix .true-negative {
+            background-color: #d0e0f0;
+        }
+        
+        .metrics-table {
+            width: auto;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        
+        .metrics-table th, .metrics-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .metrics-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .single-output-metrics {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -192,6 +303,98 @@
         <div class="network-visualization">
             <h2>Network Visualization</h2>
             <div id="networkGraph"></div>
+        </div>
+        
+        <!-- Add test data validation section -->
+        <div class="test-data-section">
+            <h2>Test Data Validation</h2>
+            <div class="input-section">
+                <textarea id="testDataJson" placeholder="Paste test data JSON here (e.g. {'data': [{'input': [0,0,0], 'expected_output': [0,0]}, ...]}"></textarea>
+                <div>
+                    <button id="loadTestDataBtn">Load Test Data</button>
+                    <button id="sampleTestDataBtn">Load Sample Test Data</button>
+                </div>
+            </div>
+            <div id="validationResults" style="display: none;">
+                <h3>Validation Results</h3>
+                
+                <!-- Add Single-Output Metrics (Confusion Matrix) -->
+                <div id="singleOutputMetrics" class="single-output-metrics">
+                    <h4>Confusion Matrix</h4>
+                    <div class="confusion-matrix-container">
+                        <table class="confusion-matrix">
+                            <tr>
+                                <th colspan="2" rowspan="2"></th>
+                                <th colspan="2">Predicted</th>
+                            </tr>
+                            <tr>
+                                <th>Positive (1)</th>
+                                <th>Negative (0)</th>
+                            </tr>
+                            <tr>
+                                <th rowspan="2">Actual</th>
+                                <th>Positive (1)</th>
+                                <td id="truePositives" class="true-positive">0</td>
+                                <td id="falseNegatives" class="false-negative">0</td>
+                            </tr>
+                            <tr>
+                                <th>Negative (0)</th>
+                                <td id="falsePositives" class="false-positive">0</td>
+                                <td id="trueNegatives" class="true-negative">0</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <h4>Classification Metrics</h4>
+                    <table class="metrics-table">
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td>Accuracy</td>
+                            <td id="accuracyMetric">0%</td>
+                            <td>(TP + TN) / Total</td>
+                        </tr>
+                        <tr>
+                            <td>Precision</td>
+                            <td id="precisionMetric">0%</td>
+                            <td>TP / (TP + FP)</td>
+                        </tr>
+                        <tr>
+                            <td>Recall (Sensitivity)</td>
+                            <td id="recallMetric">0%</td>
+                            <td>TP / (TP + FN)</td>
+                        </tr>
+                        <tr>
+                            <td>Specificity</td>
+                            <td id="specificityMetric">0%</td>
+                            <td>TN / (TN + FP)</td>
+                        </tr>
+                        <tr>
+                            <td>F1 Score</td>
+                            <td id="f1ScoreMetric">0</td>
+                            <td>2 * (Precision * Recall) / (Precision + Recall)</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="validation-summary" id="validationSummary"></div>
+                <table class="validation-table" id="validationTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Input</th>
+                            <th>Expected Output</th>
+                            <th>Actual Output</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="validationTableBody">
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -824,6 +1027,241 @@
             
             d3.selectAll('.link')
                 .classed('hover-highlight-link', false);
+        }
+        
+        // Add test data functionality
+        let testData = null;
+        
+        // Sample test data (adder for 3-bit inputs)
+        const sampleTestData = {
+            "data": [
+                {"input": [0, 0, 0], "expected_output": [0, 0]}, 
+                {"input": [0, 0, 1], "expected_output": [0, 1]}, 
+                {"input": [0, 1, 0], "expected_output": [0, 1]}, 
+                {"input": [0, 1, 1], "expected_output": [1, 0]}, 
+                {"input": [1, 0, 0], "expected_output": [0, 1]}, 
+                {"input": [1, 0, 1], "expected_output": [1, 0]}, 
+                {"input": [1, 1, 0], "expected_output": [1, 0]}, 
+                {"input": [1, 1, 1], "expected_output": [1, 1]}
+            ]
+        };
+        
+        // Add event listeners for test data
+        document.getElementById('loadTestDataBtn').addEventListener('click', loadTestData);
+        document.getElementById('sampleTestDataBtn').addEventListener('click', loadSampleTestData);
+        
+        // Add event handler to visualize network button to also validate test data
+        document.getElementById('visualizeBtn').addEventListener('click', function() {
+            visualizeNetwork();
+            if (testData !== null && network !== null) {
+                validateTestData();
+            }
+        });
+        
+        function loadSampleTestData() {
+            document.getElementById('testDataJson').value = JSON.stringify(sampleTestData, null, 2);
+            loadTestData();
+        }
+        
+        function loadTestData() {
+            const testDataInput = document.getElementById('testDataJson').value;
+            try {
+                testData = JSON.parse(testDataInput);
+                if (network !== null) {
+                    validateTestData();
+                }
+            } catch (error) {
+                alert('Error parsing test data JSON: ' + error.message);
+            }
+        }
+        
+        function validateTestData() {
+            if (!testData || !testData.data || !Array.isArray(testData.data) || testData.data.length === 0) {
+                alert('Invalid test data format');
+                return;
+            }
+            
+            const tableBody = document.getElementById('validationTableBody');
+            tableBody.innerHTML = '';
+            
+            let correctCount = 0;
+            const totalCount = testData.data.length;
+            
+            // Track confusion matrix values for single output case
+            let truePositives = 0;
+            let falsePositives = 0;
+            let falseNegatives = 0;
+            let trueNegatives = 0;
+            let isSingleBinaryOutput = true; // Will check if this is a binary single-output classifier
+            
+            const results = [];
+            
+            testData.data.forEach((testCase, index) => {
+                const row = document.createElement('tr');
+                
+                // Case number
+                const caseCell = document.createElement('td');
+                caseCell.textContent = index + 1;
+                row.appendChild(caseCell);
+                
+                // Input values
+                const inputCell = document.createElement('td');
+                inputCell.textContent = JSON.stringify(testCase.input);
+                row.appendChild(inputCell);
+                
+                // Expected output
+                const expectedCell = document.createElement('td');
+                expectedCell.textContent = JSON.stringify(testCase.expected_output);
+                row.appendChild(expectedCell);
+                
+                // Calculate actual output
+                let actualOutput;
+                try {
+                    actualOutput = network.evaluate ? 
+                        evaluateNetworkForTest(testCase.input) : 
+                        calculateNetworkOutput(testCase.input);
+                } catch (error) {
+                    actualOutput = `Error: ${error.message}`;
+                    isSingleBinaryOutput = false; // Error state, can't calculate confusion matrix
+                }
+                
+                // Store results for metrics calculation
+                if (Array.isArray(actualOutput) && Array.isArray(testCase.expected_output)) {
+                    results.push({
+                        expected: testCase.expected_output,
+                        actual: actualOutput
+                    });
+                    
+                    // Check if this is a binary single output classifier
+                    if (actualOutput.length !== 1 || testCase.expected_output.length !== 1 || 
+                        (actualOutput[0] !== 0 && actualOutput[0] !== 1) || 
+                        (testCase.expected_output[0] !== 0 && testCase.expected_output[0] !== 1)) {
+                        isSingleBinaryOutput = false;
+                    }
+                    
+                    // Update confusion matrix for binary single-output case
+                    if (isSingleBinaryOutput) {
+                        if (testCase.expected_output[0] === 1) {
+                            if (actualOutput[0] === 1) {
+                                truePositives++;
+                            } else {
+                                falseNegatives++;
+                            }
+                        } else {
+                            if (actualOutput[0] === 1) {
+                                falsePositives++;
+                            } else {
+                                trueNegatives++;
+                            }
+                        }
+                    }
+                } else {
+                    isSingleBinaryOutput = false;
+                }
+                
+                // Actual output
+                const actualCell = document.createElement('td');
+                actualCell.textContent = JSON.stringify(actualOutput);
+                row.appendChild(actualCell);
+                
+                // Status
+                const statusCell = document.createElement('td');
+                let isCorrect = false;
+                
+                if (Array.isArray(actualOutput) && Array.isArray(testCase.expected_output)) {
+                    isCorrect = arraysEqual(actualOutput, testCase.expected_output);
+                }
+                
+                if (isCorrect) {
+                    statusCell.textContent = '✓';
+                    statusCell.classList.add('correct');
+                    correctCount++;
+                } else {
+                    statusCell.textContent = '✗';
+                    statusCell.classList.add('error');
+                    actualCell.classList.add('error');
+                }
+                
+                row.appendChild(statusCell);
+                tableBody.appendChild(row);
+            });
+            
+            // Update summary
+            const accuracy = (correctCount / totalCount) * 100;
+            document.getElementById('validationSummary').textContent = 
+                `Accuracy: ${correctCount}/${totalCount} (${accuracy.toFixed(2)}%)`;
+            
+            // Update confusion matrix and metrics if this is a binary single-output classifier
+            if (isSingleBinaryOutput) {
+                document.getElementById('singleOutputMetrics').style.display = 'block';
+                
+                // Update confusion matrix
+                document.getElementById('truePositives').textContent = truePositives;
+                document.getElementById('falsePositives').textContent = falsePositives;
+                document.getElementById('falseNegatives').textContent = falseNegatives;
+                document.getElementById('trueNegatives').textContent = trueNegatives;
+                
+                // Calculate and update metrics
+                const accuracy = (truePositives + trueNegatives) / (truePositives + trueNegatives + falsePositives + falseNegatives);
+                const precision = truePositives === 0 ? 0 : truePositives / (truePositives + falsePositives);
+                const recall = truePositives === 0 ? 0 : truePositives / (truePositives + falseNegatives);
+                const specificity = trueNegatives === 0 ? 0 : trueNegatives / (trueNegatives + falsePositives);
+                const f1Score = precision + recall === 0 ? 0 : 2 * (precision * recall) / (precision + recall);
+                
+                document.getElementById('accuracyMetric').textContent = (accuracy * 100).toFixed(2) + '%';
+                document.getElementById('precisionMetric').textContent = (precision * 100).toFixed(2) + '%';
+                document.getElementById('recallMetric').textContent = (recall * 100).toFixed(2) + '%';
+                document.getElementById('specificityMetric').textContent = (specificity * 100).toFixed(2) + '%';
+                document.getElementById('f1ScoreMetric').textContent = f1Score.toFixed(4);
+            } else {
+                document.getElementById('singleOutputMetrics').style.display = 'none';
+            }
+            
+            // Show validation results
+            document.getElementById('validationResults').style.display = 'block';
+        }
+        
+        // Calculate output from the network for test cases
+        function calculateNetworkOutput(inputValues) {
+            if (!network || !network.layers) {
+                throw new Error('No network loaded');
+            }
+            
+            if (inputValues.length !== network.input_size) {
+                throw new Error(`Input size mismatch: expected ${network.input_size}, got ${inputValues.length}`);
+            }
+            
+            let currentValues = [...inputValues];
+            
+            // Process through each layer
+            for (let layerIndex = 0; layerIndex < network.layers.length; layerIndex++) {
+                const layer = network.layers[layerIndex];
+                const layerOutput = [];
+                
+                for (let neuronIndex = 0; neuronIndex < layer.neurons.length; neuronIndex++) {
+                    const neuron = layer.neurons[neuronIndex];
+                    const neuronValue = evaluateNeuron(neuron, currentValues);
+                    layerOutput.push(neuronValue);
+                }
+                
+                currentValues = layerOutput;
+            }
+            
+            return currentValues;
+        }
+        
+        // Execute the existing evaluate function from the network if it exists
+        function evaluateNetworkForTest(inputValues) {
+            return network.evaluate(inputValues);
+        }
+        
+        // Helper function to compare arrays
+        function arraysEqual(a, b) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (a[i] !== b[i]) return false;
+            }
+            return true;
         }
     </script>
 </body>
