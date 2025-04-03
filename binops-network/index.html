@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Signal color variables - easily customizable */
+        :root {
+            --active-one-color: #f00; /* Red for 1s */
+            --active-zero-color: #0066cc; /* Blue for 0s */
+            --hover-highlight-color: #ff9900; /* Orange for hover highlight */
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+        #networkJson {
+            width: 100%;
+            height: 120px;
+            font-family: monospace;
+            padding: 8px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .network-visualization {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        #networkGraph {
+            min-height: 500px;
+        }
+        .node circle {
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+        .node circle.input {
+            fill: #a8d5e5;
+        }
+        .node circle.hidden {
+            fill: #e5d5a8;
+        }
+        .node circle.output {
+            fill: #a8e5c3;
+        }
+        .node text {
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .label {
+            font-size: 10px;
+            font-style: italic;
+        }
+        .link {
+            fill: none;
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 1.5px;
+        }
+        .active-node-one {
+            stroke: var(--active-one-color) !important;
+            stroke-width: 3px !important;
+        }
+        .active-node-zero {
+            stroke: var(--active-zero-color) !important;
+            stroke-width: 3px !important;
+        }
+        .active-link-one {
+            stroke: var(--active-one-color) !important;
+            stroke-width: 2.5px !important;
+            stroke-opacity: 1 !important;
+        }
+        .active-link-zero {
+            stroke: var(--active-zero-color) !important;
+            stroke-width: 2.5px !important;
+            stroke-opacity: 1 !important;
+        }
+        
+        .active-node, .active-link {
+            display: none;
+        }
+        .input-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+        }
+        .value-display {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .layer-label {
+            text-anchor: middle;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        /* Add hover highlight styles */
+        .hover-highlight-node {
+            stroke: var(--hover-highlight-color) !important;
+            stroke-width: 4px !important;
+        }
+        
+        .hover-highlight-link {
+            stroke: var(--hover-highlight-color) !important;
+            stroke-width: 3px !important;
+            stroke-opacity: 0.8 !important;
+        }
+        
+        .hover-highlight-related-node {
+            stroke: var(--hover-highlight-color) !important;
+            stroke-width: 2px !important;
+        }
+        
+        /* Tooltip for showing neuron info */
+        .tooltip {
+            position: absolute;
+            padding: 6px 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Neural Network Visualizer</h1>
+        
+        <div class="input-section">
+            <h2>Network Configuration</h2>
+            <textarea id="networkJson" placeholder="Paste JSON representation of the network here..."></textarea>
+            <div>
+                <button id="visualizeBtn">Visualize Network</button>
+                <button id="sampleBtn">Load Sample</button>
+            </div>
+        </div>
+        
+        <div id="networkControls" style="display: none;">
+            <h2>Network Inputs</h2>
+            <div id="inputControls" class="input-controls"></div>
+            <div class="controls">
+                <button id="runBtn">Run Network</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+        </div>
+        
+        <div class="network-visualization">
+            <h2>Network Visualization</h2>
+            <div id="networkGraph"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let network = null;
+        let nodeData = [];
+        let linkData = [];
+        let simulationRunning = false;
+
+        // Sample network JSON
+        const sampleNetwork = {
+            "input_size": 3,
+            "layers": [
+                {
+                    "input_size": 3,
+                    "neurons": [
+                        {"operation": "Xor", "arguments_indexes": [0, 1]},
+                        {"operation": "NoOp", "arguments_indexes": [1]},
+                        {"operation": "Xor", "arguments_indexes": [0, 2]}
+                    ]
+                },
+                {
+                    "input_size": 3,
+                    "neurons": [
+                        {"operation": "Xor", "arguments_indexes": [1, 2]},
+                        {"operation": "Or", "arguments_indexes": [0, 2]}
+                    ]
+                },
+                {
+                    "input_size": 2,
+                    "neurons": [
+                        {"operation": "Xor", "arguments_indexes": [0, 1]},
+                        {"operation": "NoOp", "arguments_indexes": [0]}
+                    ]
+                }
+            ]
+        };
+
+        // Event listeners
+        document.getElementById('visualizeBtn').addEventListener('click', visualizeNetwork);
+        document.getElementById('sampleBtn').addEventListener('click', loadSample);
+        document.getElementById('runBtn').addEventListener('click', runSimulation);
+        document.getElementById('resetBtn').addEventListener('click', resetVisualization);
+
+        function loadSample() {
+            document.getElementById('networkJson').value = JSON.stringify(sampleNetwork, null, 2);
+        }
+
+        function visualizeNetwork() {
+            // Parse the JSON input
+            const jsonInput = document.getElementById('networkJson').value;
+            try {
+                network = JSON.parse(jsonInput);
+                renderNetwork(network);
+                setupInputControls(network.input_size);
+                document.getElementById('networkControls').style.display = 'block';
+            } catch (error) {
+                alert('Error parsing JSON: ' + error.message);
+            }
+        }
+
+        function renderNetwork(network) {
+            // Clear previous visualization
+            document.getElementById('networkGraph').innerHTML = '';
+            
+            // Setup dimensions
+            const width = 900;
+            
+            // Calculate the largest layer size to determine height
+            const layerSizes = [network.input_size];
+            network.layers.forEach(layer => {
+                layerSizes.push(layer.neurons.length);
+            });
+            const maxLayerSize = Math.max(...layerSizes);
+            
+            // Set a dynamic height with a minimum of 500px and at least 80px per node
+            const minHeight = 500;
+            const heightPerNode = 80;
+            const calculatedHeight = Math.max(minHeight, maxLayerSize * heightPerNode);
+            const height = calculatedHeight;
+            
+            const margin = { top: 40, right: 50, bottom: 30, left: 50 };
+            const contentWidth = width - margin.left - margin.right;
+            const contentHeight = height - margin.top - margin.bottom;
+            
+            // Create SVG
+            const svg = d3.select('#networkGraph')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Add a group for the network
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left}, ${margin.top})`);
+            
+            // Add layer labels
+            g.append('text')
+                .attr('class', 'layer-label')
+                .attr('x', 0)
+                .attr('y', -20)
+                .text('Input Layer');
+                
+            // Calculate layers
+            const totalLayers = network.layers.length + 1; // Input layer + hidden/output layers
+            const layerSpacing = contentWidth / totalLayers;
+            
+            // Prepare data structures for nodes and links
+            nodeData = [];
+            linkData = [];
+            
+            // Add input layer nodes
+            const inputNodes = [];
+            const inputNodeSpacing = contentHeight / (network.input_size + 1);
+            
+            for (let i = 0; i < network.input_size; i++) {
+                const nodeId = `input-${i}`;
+                const node = {
+                    id: nodeId,
+                    x: 0,
+                    y: (i + 1) * inputNodeSpacing,
+                    layer: 0,
+                    index: i,
+                    type: 'input',
+                    label: `Input ${i}`,
+                    value: null
+                };
+                inputNodes.push(node);
+                nodeData.push(node);
+            }
+            
+            // Process each layer
+            let prevLayerNodes = inputNodes;
+            
+            network.layers.forEach((layer, layerIndex) => {
+                const layerType = layerIndex === network.layers.length - 1 ? 'output' : 'hidden';
+                const layerNodes = [];
+                const nodeSpacing = contentHeight / (layer.neurons.length + 1);
+                
+                // Add layer label
+                g.append('text')
+                    .attr('class', 'layer-label')
+                    .attr('x', (layerIndex + 1) * layerSpacing)
+                    .attr('y', -20)
+                    .text(layerType === 'output' ? 'Output Layer' : `Hidden Layer ${layerIndex + 1}`);
+                
+                // Add nodes for this layer
+                layer.neurons.forEach((neuron, neuronIndex) => {
+                    const nodeId = `layer${layerIndex}-${neuronIndex}`;
+                    const node = {
+                        id: nodeId,
+                        x: (layerIndex + 1) * layerSpacing,
+                        y: (neuronIndex + 1) * nodeSpacing,
+                        layer: layerIndex + 1,
+                        index: neuronIndex,
+                        type: layerType,
+                        operation: neuron.operation,
+                        // label: `${neuron.operation}`,
+                        label: '',
+                        value: null
+                    };
+                    layerNodes.push(node);
+                    nodeData.push(node);
+                    
+                    // Add connections from previous layer
+                    neuron.arguments_indexes.forEach(argIndex => {
+                        if (argIndex < prevLayerNodes.length) {
+                            const sourceNode = prevLayerNodes[argIndex];
+                            linkData.push({
+                                id: `${sourceNode.id}-to-${nodeId}`,
+                                source: sourceNode,
+                                target: node,
+                                argIndex: argIndex,
+                                value: null
+                            });
+                        }
+                    });
+                });
+                
+                prevLayerNodes = layerNodes;
+            });
+            
+            // Create links
+            const links = g.selectAll('.link')
+                .data(linkData)
+                .enter()
+                .append('path')
+                .attr('class', 'link')
+                .attr('id', d => d.id)
+                .attr('d', d => {
+                    return `M${d.source.x},${d.source.y} C${(d.source.x + d.target.x) / 2},${d.source.y} `
+                        + `${(d.source.x + d.target.x) / 2},${d.target.y} ${d.target.x},${d.target.y}`;
+                });
+            
+            // Create tooltip div
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0);
+            
+            // Create nodes with hover behavior
+            const nodes = g.selectAll('.node')
+                .data(nodeData)
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('id', d => d.id)
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .on('mouseenter', function(event, d) {
+                    highlightConnections(d);
+                    
+                    // Show tooltip
+                    tooltip.transition()
+                        .duration(200)
+                        .style('opacity', .9);
+                    
+                    let tooltipContent = d.type === 'input' 
+                        ? `Input ${d.index}` 
+                        : `${d.operation} (Layer ${d.layer}, Node ${d.index})`;
+                    
+                    tooltip.html(tooltipContent)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 28) + 'px');
+                })
+                .on('mouseleave', function(event, d) {
+                    unhighlightConnections();
+                    
+                    // Hide tooltip
+                    tooltip.transition()
+                        .duration(500)
+                        .style('opacity', 0);
+                });
+            
+            // Add circles for nodes
+            nodes.append('circle')
+                .attr('r', 20)
+                .attr('class', d => d.type);
+            
+            // Add text labels for operations
+            nodes.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.3em')
+                .text(d => d.type === 'input' ? '' : d.operation);
+            
+            // Add input/output labels
+            nodes.append('text')
+                .attr('class', 'label')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '3em')
+                .text(d => d.label);
+        }
+
+        function setupInputControls(inputSize) {
+            const inputControls = document.getElementById('inputControls');
+            inputControls.innerHTML = '';
+            
+            for (let i = 0; i < inputSize; i++) {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'input-group';
+                
+                const label = document.createElement('label');
+                label.htmlFor = `input-${i}-value`;
+                label.textContent = `Input ${i}: `;
+                
+                const select = document.createElement('select');
+                select.id = `input-${i}-value`;
+                
+                const option0 = document.createElement('option');
+                option0.value = '0';
+                option0.textContent = '0';
+                
+                const option1 = document.createElement('option');
+                option1.value = '1';
+                option1.textContent = '1';
+                
+                select.appendChild(option0);
+                select.appendChild(option1);
+                
+                inputGroup.appendChild(label);
+                inputGroup.appendChild(select);
+                inputControls.appendChild(inputGroup);
+            }
+        }
+
+        function runSimulation() {
+            resetVisualization();
+            
+            // Get input values
+            const inputValues = [];
+            for (let i = 0; i < network.input_size; i++) {
+                const value = parseInt(document.getElementById(`input-${i}-value`).value);
+                inputValues.push(value);
+                
+                // Update input node visual based on value (0 or 1)
+                const inputNode = nodeData.find(n => n.id === `input-${i}`);
+                if (inputNode) {
+                    inputNode.value = value;
+                    d3.select(`#${inputNode.id} circle`)
+                        .classed(value === 1 ? 'active-node-one' : 'active-node-zero', true);
+                }
+            }
+            
+            // Process layers sequentially with animation
+            processLayersSequentially(inputValues, 0);
+        }
+
+        function processLayersSequentially(inputValues, layerIndex) {
+            if (layerIndex >= network.layers.length) {
+                return; // All layers processed
+            }
+            
+            setTimeout(() => {
+                const layerOutputs = evaluateLayer(network.layers[layerIndex], inputValues, layerIndex);
+                visualizeLayerOutputs(layerOutputs, layerIndex);
+                processLayersSequentially(layerOutputs, layerIndex + 1);
+            }, 1000); // 1 second delay between layers
+        }
+
+        function evaluateLayer(layer, inputValues, layerIndex) {
+            return layer.neurons.map((neuron, neuronIndex) => {
+                const value = evaluateNeuron(neuron, inputValues);
+                
+                // Update node data
+                const nodeId = `layer${layerIndex}-${neuronIndex}`;
+                const node = nodeData.find(n => n.id === nodeId);
+                if (node) {
+                    node.value = value;
+                }
+                
+                return value;
+            });
+        }
+
+        function evaluateNeuron(neuron, inputValues) {
+            const args = neuron.arguments_indexes.map(idx => inputValues[idx]);
+            
+            switch (neuron.operation) {
+                case 'And':
+                    return args[0] & args[1];
+                case 'Or':
+                    return args[0] | args[1];
+                case 'Not':
+                    return args[0] === 0 ? 1 : 0;
+                case 'Xor':
+                    return args[0] !== args[1] ? 1 : 0;
+                case 'NoOp':
+                    return args[0];
+                default:
+                    console.error('Unknown operation:', neuron.operation);
+                    return 0;
+            }
+        }
+
+        function visualizeLayerOutputs(outputs, layerIndex) {
+            outputs.forEach((value, neuronIndex) => {
+                const nodeId = `layer${layerIndex}-${neuronIndex}`;
+                const node = nodeData.find(n => n.id === nodeId);
+                
+                if (node) {
+                    // Highlight node with appropriate class based on value
+                    d3.select(`#${nodeId} circle`)
+                        .classed(value === 1 ? 'active-node-one' : 'active-node-zero', true);
+                    
+                    // Highlight incoming links
+                    linkData.filter(link => link.target.id === nodeId)
+                        .forEach(link => {
+                            const sourceValue = link.source.value;
+                            const linkElement = d3.select(`#${link.id}`);
+                            
+                            // Only highlight links where source has a value (0 or 1)
+                            if (sourceValue !== null) {
+                                linkElement.classed(
+                                    sourceValue === 1 ? 'active-link-one' : 'active-link-zero', 
+                                    true
+                                );
+                            }
+                        });
+                }
+            });
+        }
+
+        function resetVisualization() {
+            // Reset node values
+            nodeData.forEach(node => {
+                node.value = null;
+            });
+            
+            // Reset visual state (clear both zero and one classes)
+            d3.selectAll('.node circle')
+                .classed('active-node-one', false)
+                .classed('active-node-zero', false);
+            
+            d3.selectAll('.link')
+                .classed('active-link-one', false)
+                .classed('active-link-zero', false);
+            
+            // Also clear any hover highlights
+            unhighlightConnections();
+        }
+        
+        // Function to highlight a neuron and its connections
+        function highlightConnections(node) {
+            // Clear any existing highlights first
+            unhighlightConnections();
+            
+            // Highlight the current node
+            d3.select(`#${node.id} circle`).classed('hover-highlight-node', true);
+            
+            // Find and highlight direct incoming connections and their source nodes
+            const incomingLinks = linkData.filter(link => link.target.id === node.id);
+            incomingLinks.forEach(link => {
+                d3.select(`#${link.id}`).classed('hover-highlight-link', true);
+                d3.select(`#${link.source.id} circle`).classed('hover-highlight-related-node', true);
+            });
+            
+            // Find and highlight direct outgoing connections and their target nodes
+            const outgoingLinks = linkData.filter(link => link.source.id === node.id);
+            outgoingLinks.forEach(link => {
+                d3.select(`#${link.id}`).classed('hover-highlight-link', true);
+                d3.select(`#${link.target.id} circle`).classed('hover-highlight-related-node', true);
+            });
+            
+            // For backward transitive highlighting (inputs to this node)
+            if (node.type !== 'input') {
+                // Get all sources that transitively contribute to this node
+                const allInputSources = new Set();
+                const visitedBackward = new Set();
+                
+                findAllInputSources(node, allInputSources, visitedBackward);
+                
+                // Highlight all transitive paths from inputs to this node
+                highlightTransitivePathsBackward(node, allInputSources);
+            }
+            
+            // For forward transitive highlighting (this node to outputs)
+            if (node.type !== 'output') {
+                // Get all output nodes that are transitively influenced by this node
+                const allOutputTargets = new Set();
+                const visitedForward = new Set();
+                
+                findAllOutputTargets(node, allOutputTargets, visitedForward);
+                
+                // Highlight all transitive paths from this node to outputs
+                highlightTransitivePathsForward(node, allOutputTargets);
+            }
+        }
+        
+        // Recursively find all input sources that contribute to a node
+        function findAllInputSources(node, allSources, visited) {
+            // Prevent infinite recursion in case of cycles
+            if (visited.has(node.id)) return;
+            visited.add(node.id);
+            
+            // Find all direct inputs to this node
+            const incomingLinks = linkData.filter(link => link.target.id === node.id);
+            
+            for (const link of incomingLinks) {
+                const sourceNode = link.source;
+                
+                if (sourceNode.type === 'input') {
+                    // This is an input node, add it to our set
+                    allSources.add(sourceNode.id);
+                } else {
+                    // This is an intermediate node, recursively find its inputs
+                    findAllInputSources(sourceNode, allSources, visited);
+                }
+            }
+        }
+        
+        // Recursively find all output targets influenced by a node
+        function findAllOutputTargets(node, allTargets, visited) {
+            // Prevent infinite recursion in case of cycles
+            if (visited.has(node.id)) return;
+            visited.add(node.id);
+            
+            // Find all direct outputs from this node
+            const outgoingLinks = linkData.filter(link => link.source.id === node.id);
+            
+            for (const link of outgoingLinks) {
+                const targetNode = link.target;
+                
+                if (targetNode.type === 'output') {
+                    // This is an output node, add it to our set
+                    allTargets.add(targetNode.id);
+                }
+                
+                // Always check further connections
+                findAllOutputTargets(targetNode, allTargets, visited);
+            }
+        }
+        
+        // Highlight all paths from input sources to the target node (backward)
+        function highlightTransitivePathsBackward(targetNode, inputSourceIds) {
+            // Create a queue for breadth-first traversal
+            const queue = [];
+            const visited = new Set();
+            const highlightedLinks = new Set();
+            
+            // Start with all input nodes that contribute to the target
+            for (const inputId of inputSourceIds) {
+                const inputNode = nodeData.find(n => n.id === inputId);
+                queue.push(inputNode);
+                visited.add(inputId);
+                
+                // Highlight all input nodes that contribute
+                d3.select(`#${inputId} circle`).classed('hover-highlight-related-node', true);
+            }
+            
+            // Breadth-first traversal to highlight all paths to the target
+            while (queue.length > 0) {
+                const currentNode = queue.shift();
+                
+                // Find all outgoing links from this node
+                const outLinks = linkData.filter(link => link.source.id === currentNode.id);
+                
+                for (const link of outLinks) {
+                    const destNode = link.target;
+                    
+                    // Only process nodes that can eventually reach the target
+                    if (canReachTarget(destNode, targetNode.id, new Set())) {
+                        // Highlight this connection
+                        d3.select(`#${link.id}`).classed('hover-highlight-link', true);
+                        highlightedLinks.add(link.id);
+                        
+                        // Highlight the destination node
+                        d3.select(`#${destNode.id} circle`).classed('hover-highlight-related-node', true);
+                        
+                        // Add the destination to our queue if not visited
+                        if (!visited.has(destNode.id)) {
+                            visited.add(destNode.id);
+                            queue.push(destNode);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Highlight all paths from the source node to output targets (forward)
+        function highlightTransitivePathsForward(sourceNode, outputTargetIds) {
+            // Create a queue for breadth-first traversal
+            const queue = [];
+            const visited = new Set();
+            const highlightedLinks = new Set();
+            
+            // Identify all output nodes that are affected by the source
+            const outputNodes = [];
+            for (const outputId of outputTargetIds) {
+                const outputNode = nodeData.find(n => n.id === outputId);
+                outputNodes.push(outputNode);
+                
+                // Highlight all output nodes that are affected
+                d3.select(`#${outputId} circle`).classed('hover-highlight-related-node', true);
+            }
+            
+            // Start with the source node
+            queue.push(sourceNode);
+            visited.add(sourceNode.id);
+            
+            // Breadth-first traversal to highlight all paths to outputs
+            while (queue.length > 0) {
+                const currentNode = queue.shift();
+                
+                // Find all outgoing links from this node
+                const outLinks = linkData.filter(link => link.source.id === currentNode.id);
+                
+                for (const link of outLinks) {
+                    const destNode = link.target;
+                    
+                    // Only process nodes that lead to our output targets
+                    if (canInfluenceAnyOutput(destNode, outputTargetIds, new Set())) {
+                        // Highlight this connection
+                        d3.select(`#${link.id}`).classed('hover-highlight-link', true);
+                        highlightedLinks.add(link.id);
+                        
+                        // Highlight the destination node
+                        d3.select(`#${destNode.id} circle`).classed('hover-highlight-related-node', true);
+                        
+                        // Add the destination to our queue if not visited
+                        if (!visited.has(destNode.id)) {
+                            visited.add(destNode.id);
+                            queue.push(destNode);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Check if a node can reach the target node
+        function canReachTarget(node, targetId, visited) {
+            if (node.id === targetId) return true;
+            if (visited.has(node.id)) return false;
+            
+            visited.add(node.id);
+            
+            // Find all outgoing links from this node
+            const outLinks = linkData.filter(link => link.source.id === node.id);
+            
+            for (const link of outLinks) {
+                if (canReachTarget(link.target, targetId, visited)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Check if a node can influence any of the specified output nodes
+        function canInfluenceAnyOutput(node, outputIds, visited) {
+            if (outputIds.has(node.id)) return true;
+            if (visited.has(node.id)) return false;
+            
+            visited.add(node.id);
+            
+            // Find all outgoing links from this node
+            const outLinks = linkData.filter(link => link.source.id === node.id);
+            
+            for (const link of outLinks) {
+                if (canInfluenceAnyOutput(link.target, outputIds, visited)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Function to remove all highlighting
+        function unhighlightConnections() {
+            d3.selectAll('.node circle')
+                .classed('hover-highlight-node', false)
+                .classed('hover-highlight-related-node', false);
+            
+            d3.selectAll('.link')
+                .classed('hover-highlight-link', false);
+        }
+    </script>
+</body>
+</html>
