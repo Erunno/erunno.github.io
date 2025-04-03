@@ -484,6 +484,7 @@
         let nodeData = [];
         let linkData = [];
         let simulationRunning = false;
+        let neuronActivationStats = {}; // New: Track neuron activations
 
         // Sample network JSON
         const sampleNetwork = {
@@ -532,6 +533,9 @@
                 renderNetwork(network);
                 setupInputControls(network.input_size);
                 document.getElementById('networkControls').style.display = 'block';
+                
+                // Reset neuron activation stats when loading a new network
+                neuronActivationStats = {};
                 
                 // Analyze the network connectivity
                 analyzeNetworkConnectivity();
@@ -696,7 +700,7 @@
                 .on('mouseenter', function(event, d) {
                     highlightConnections(d);
                     
-                    // Show tooltip
+                    // Show tooltip with activation statistics if available
                     tooltip.transition()
                         .duration(200)
                         .style('opacity', .9);
@@ -704,6 +708,17 @@
                     let tooltipContent = d.type === 'input' 
                         ? `Input ${d.index}` 
                         : `${d.operation} (Layer ${d.layer}, Node ${d.index})`;
+                    
+                    // Add activation statistics if available
+                    if (neuronActivationStats[d.id]) {
+                        const stats = neuronActivationStats[d.id];
+                        const total = stats.active + stats.inactive;
+                        const activePercent = (stats.active / total * 100).toFixed(1);
+                        
+                        tooltipContent += `<br>Activation: ${stats.active}/${total} (${activePercent}%)`;
+                        tooltipContent += `<br>Cases where output = 1: ${stats.active}`;
+                        tooltipContent += `<br>Cases where output = 0: ${stats.inactive}`;
+                    }
                     
                     tooltip.html(tooltipContent)
                         .style('left', (event.pageX + 10) + 'px')
@@ -1179,6 +1194,9 @@
                 return;
             }
             
+            // Reset neuron activation statistics
+            neuronActivationStats = {};
+            
             const tableBody = document.getElementById('validationTableBody');
             tableBody.innerHTML = '';
             
@@ -1215,9 +1233,8 @@
                 // Calculate actual output
                 let actualOutput;
                 try {
-                    actualOutput = network.evaluate ? 
-                        evaluateNetworkForTest(testCase.input) : 
-                        calculateNetworkOutput(testCase.input);
+                    // Track neuron activations during this test case
+                    actualOutput = calculateNetworkOutputWithStats(testCase.input);
                 } catch (error) {
                     actualOutput = `Error: ${error.message}`;
                     isSingleBinaryOutput = false; // Error state, can't calculate confusion matrix
@@ -1321,6 +1338,11 @@
         
         // Calculate output from the network for test cases
         function calculateNetworkOutput(inputValues) {
+            return calculateNetworkOutputWithStats(inputValues);
+        }
+        
+        // New function to calculate output while tracking activations
+        function calculateNetworkOutputWithStats(inputValues) {
             if (!network || !network.layers) {
                 throw new Error('No network loaded');
             }
@@ -1331,6 +1353,21 @@
             
             let currentValues = [...inputValues];
             
+            // Track input node activations
+            for (let i = 0; i < inputValues.length; i++) {
+                const nodeId = `input-${i}`;
+                
+                if (!neuronActivationStats[nodeId]) {
+                    neuronActivationStats[nodeId] = { active: 0, inactive: 0 };
+                }
+                
+                if (inputValues[i] === 1) {
+                    neuronActivationStats[nodeId].active++;
+                } else {
+                    neuronActivationStats[nodeId].inactive++;
+                }
+            }
+            
             // Process through each layer
             for (let layerIndex = 0; layerIndex < network.layers.length; layerIndex++) {
                 const layer = network.layers[layerIndex];
@@ -1340,17 +1377,25 @@
                     const neuron = layer.neurons[neuronIndex];
                     const neuronValue = evaluateNeuron(neuron, currentValues);
                     layerOutput.push(neuronValue);
+                    
+                    // Track neuron activation
+                    const nodeId = `layer${layerIndex}-${neuronIndex}`;
+                    
+                    if (!neuronActivationStats[nodeId]) {
+                        neuronActivationStats[nodeId] = { active: 0, inactive: 0 };
+                    }
+                    
+                    if (neuronValue === 1) {
+                        neuronActivationStats[nodeId].active++;
+                    } else {
+                        neuronActivationStats[nodeId].inactive++;
+                    }
                 }
                 
                 currentValues = layerOutput;
             }
             
             return currentValues;
-        }
-        
-        // Execute the existing evaluate function from the network if it exists
-        function evaluateNetworkForTest(inputValues) {
-            return network.evaluate(inputValues);
         }
         
         // Helper function to compare arrays
