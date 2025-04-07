@@ -1780,25 +1780,23 @@
         // Function to generate code representation of the network
         function generateCodeRepresentation(network) {
             // Always use a pruned network for the code representation to keep it clean
-            const prunedNetwork = pruneNetwork(network);
             
             // Start building the code
             let code = "";
             
             // Add comment header
             code += "# Neural Network Code Representation\n";
-            code += "# Using pruned network with only connected neurons\n\n";
             
             // Define inputs
             code += "# Input variables\n";
-            for (let i = 0; i < prunedNetwork.input_size; i++) {
+            for (let i = 0; i < network.input_size; i++) {
                 code += `i${i + 1} # Input ${i}\n`;
             }
             code += "\n";
             
             // Define operations for each layer
-            prunedNetwork.layers.forEach((layer, layerIndex) => {
-                const isOutputLayer = layerIndex === prunedNetwork.layers.length - 1;
+            network.layers.forEach((layer, layerIndex) => {
+                const isOutputLayer = layerIndex === network.layers.length - 1;
                 const prefix = isOutputLayer ? "o" : `h${layerIndex + 1}_`;
                 
                 // Add layer comment
