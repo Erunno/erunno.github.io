@@ -52,9 +52,7 @@
             cursor: not-allowed;
         }
         .network-visualization {
-            width: fit-content;
-            min-width: 100%;
-            max-width: 100%;
+            width: 100%;
             border: 1px solid #ddd;
             padding: 10px;
             margin-top: 20px;
@@ -636,7 +634,7 @@
             // Create SVG
             const svg = d3.select('#networkGraph')
                 .append('svg')
-                .attr('width', width)
+                .attr('width', width - widthPerLayer + 20)
                 .attr('height', height);
             
             // Add a group for the network
