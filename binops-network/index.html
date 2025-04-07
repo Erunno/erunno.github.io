@@ -318,6 +318,7 @@
             <textarea id="networkJson" placeholder="Paste JSON representation of the network here..."></textarea>
             <div>
                 <button id="visualizeBtn">Visualize Network</button>
+                <button id="visualizePrunedBtn">Visualize Pruned</button>
                 <button id="sampleBtn">Load Sample</button>
             </div>
         </div>
@@ -522,6 +523,7 @@
 
         // Event listeners
         document.getElementById('visualizeBtn').addEventListener('click', visualizeNetwork);
+        document.getElementById('visualizePrunedBtn').addEventListener('click', visualizeNetworkPruned);
         document.getElementById('sampleBtn').addEventListener('click', loadSample);
         document.getElementById('runBtn').addEventListener('click', runSimulation);
         document.getElementById('resetBtn').addEventListener('click', resetVisualization);
@@ -530,11 +532,20 @@
             document.getElementById('networkJson').value = JSON.stringify(sampleNetwork, null, 2);
         }
 
-        function visualizeNetwork() {
+        function visualizeNetworkPruned() {
+            visualizeNetwork(true);
+        }
+
+        function visualizeNetwork(prune = false) {
             // Parse the JSON input
             const jsonInput = document.getElementById('networkJson').value;
             try {
                 network = JSON.parse(jsonInput);
+
+                if (prune) {
+                    network = pruneNetwork(network);
+                }
+
                 renderNetwork(network);
                 setupInputControls(network.input_size);
                 document.getElementById('networkControls').style.display = 'block';
@@ -1137,6 +1148,92 @@
             return false;
         }
         
+        function pruneNetwork(network) {
+            console.log('Pruning network...');
+            // Create a deep copy of the original network
+            const originalNetwork = JSON.parse(JSON.stringify(network));
+            
+            // Identify neurons that are structurally connected to outputs
+            const connectedNeurons = {};
+            
+            // Initialize connectivity tracking for each layer
+            for (let i = 0; i < originalNetwork.layers.length; i++) {
+                connectedNeurons[i] = new Set();
+            }
+            
+            // Start with output neurons (the last layer) - mark all as connected
+            const outputLayerIndex = originalNetwork.layers.length - 1;
+            for (let i = 0; i < originalNetwork.layers[outputLayerIndex].neurons.length; i++) {
+                connectedNeurons[outputLayerIndex].add(i);
+            }
+            
+            // Trace backward from outputs to inputs to find connected neurons
+            for (let layerIndex = outputLayerIndex; layerIndex > 0; layerIndex--) {
+                const layer = originalNetwork.layers[layerIndex];
+                const prevLayerIndex = layerIndex - 1;
+                
+                // For each connected neuron in this layer
+                connectedNeurons[layerIndex].forEach(neuronIndex => {
+                    const neuron = layer.neurons[neuronIndex];
+                    
+                    // Mark all input sources to this neuron as connected
+                    neuron.arguments_indexes.forEach(argIndex => {
+                        connectedNeurons[prevLayerIndex].add(argIndex);
+                    });
+                });
+            }
+            
+            // Create the pruned network structure
+            const prunedNetwork = {
+                input_size: originalNetwork.input_size, // Keep original input size
+                layers: []
+            };
+            
+            // Keep track of index mappings from original to pruned network
+            const indexMappings = {};
+            
+            // Process each layer to build the pruned network
+            for (let layerIndex = 0; layerIndex < originalNetwork.layers.length; layerIndex++) {
+                const originalLayer = originalNetwork.layers[layerIndex];
+                const newLayer = {
+                    input_size: layerIndex === 0 ? originalNetwork.input_size : prunedNetwork.layers[layerIndex - 1].neurons.length,
+                    neurons: []
+                };
+                
+                // Create mapping from original indices to new indices
+                indexMappings[layerIndex] = {};
+                let newIndex = 0;
+                
+                // For each neuron in this layer
+                for (let i = 0; i < originalLayer.neurons.length; i++) {
+                    // Only include if it's connected to outputs
+                    if (connectedNeurons[layerIndex].has(i)) {
+                        // Record the mapping of original index to new index
+                        indexMappings[layerIndex][i] = newIndex++;
+                        
+                        // Clone the neuron
+                        const originalNeuron = originalLayer.neurons[i];
+                        const newNeuron = {
+                            operation: originalNeuron.operation,
+                            arguments_indexes: [...originalNeuron.arguments_indexes]
+                        };
+                        
+                        // Remap argument indexes for non-first layers
+                        if (layerIndex > 0) {
+                            newNeuron.arguments_indexes = newNeuron.arguments_indexes.map(argIdx => 
+                                indexMappings[layerIndex - 1][argIdx] || 0); // Fallback to prevent errors
+                        }
+                        
+                        newLayer.neurons.push(newNeuron);
+                    }
+                }
+                
+                prunedNetwork.layers.push(newLayer);
+            }
+            
+            return prunedNetwork;
+        }
+
         // Function to remove all highlighting
         function unhighlightConnections() {
             d3.selectAll('.node circle')
