@@ -52,6 +52,9 @@
             cursor: not-allowed;
         }
         .network-visualization {
+            width: fit-content;
+            min-width: 100%;
+            max-width: 100%;
             border: 1px solid #ddd;
             padding: 10px;
             margin-top: 20px;
@@ -307,6 +310,32 @@
             font-weight: bold;
             background-color: #e9e9e9;
         }
+
+        /* Add styles for the code representation */
+        .code-representation {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        pre.code-block {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        
+        .code-comment {
+            color: #006400;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -383,6 +412,15 @@
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+            
+            <!-- Add Code Representation Section -->
+            <div id="codeRepresentation" class="code-representation" style="display: none;">
+                <h3>Code Representation</h3>
+                <p>The network can be represented by the following code:</p>
+                <pre id="networkCode" class="code-block">
+                    // Code will be generated here
+                </pre>
             </div>
         </div>
         
@@ -555,6 +593,9 @@
                 
                 // Analyze the network connectivity
                 analyzeNetworkConnectivity();
+                
+                // Generate and display the code representation
+                generateCodeRepresentation(network);
             } catch (error) {
                 alert('Error parsing JSON: ' + error.message);
             }
@@ -1736,6 +1777,88 @@
                     linkElement.style('opacity', 0.2);
                 }
             });
+        }
+
+        // Function to generate code representation of the network
+        function generateCodeRepresentation(network) {
+            // Always use a pruned network for the code representation to keep it clean
+            const prunedNetwork = pruneNetwork(network);
+            
+            // Start building the code
+            let code = "";
+            
+            // Add comment header
+            code += "# Neural Network Code Representation\n";
+            code += "# Using pruned network with only connected neurons\n\n";
+            
+            // Define inputs
+            code += "# Input variables\n";
+            for (let i = 0; i < prunedNetwork.input_size; i++) {
+                code += `i${i + 1} # Input ${i}\n`;
+            }
+            code += "\n";
+            
+            // Define operations for each layer
+            prunedNetwork.layers.forEach((layer, layerIndex) => {
+                const isOutputLayer = layerIndex === prunedNetwork.layers.length - 1;
+                const prefix = isOutputLayer ? "o" : `h${layerIndex + 1}_`;
+                
+                // Add layer comment
+                if (isOutputLayer) {
+                    code += "# Output layer\n";
+                } else {
+                    code += `# Hidden layer ${layerIndex + 1}\n`;
+                }
+                
+                // Process each neuron in the layer
+                layer.neurons.forEach((neuron, neuronIndex) => {
+                    const variableName = isOutputLayer ? `${prefix}${neuronIndex + 1}` : `${prefix}${neuronIndex}`;
+                    
+                    // Format the operation
+                    let operation;
+                    const args = neuron.arguments_indexes.map(idx => {
+                        // Determine the variable name for this argument
+                        if (layerIndex === 0) {
+                            // First hidden layer references inputs
+                            return `i${idx + 1}`;
+                        } else {
+                            // Other layers reference previous layer neurons
+                            const prevLayerPrefix = layerIndex === 1 ? "h1_" : `h${layerIndex}_`;
+                            return `${prevLayerPrefix}${idx}`;
+                        }
+                    });
+                    
+                    // Format the operation based on operation type
+                    switch (neuron.operation) {
+                        case "And":
+                            operation = `${args[0]} & ${args[1]}`;
+                            break;
+                        case "Or":
+                            operation = `${args[0]} | ${args[1]}`;
+                            break;
+                        case "Xor":
+                            operation = `${args[0]} ^ ${args[1]}`;
+                            break;
+                        case "Not":
+                            operation = `~${args[0]}`;
+                            break;
+                        case "NoOp":
+                            operation = args[0];
+                            break;
+                        default:
+                            operation = `unknown_op(${args.join(", ")})`;
+                    }
+                    
+                    // Write the operation
+                    code += `${variableName} = ${operation}\n`;
+                });
+                
+                code += "\n";
+            });
+            
+            // Display the code
+            document.getElementById('networkCode').textContent = code;
+            document.getElementById('codeRepresentation').style.display = 'block';
         }
     </script>
 </body>
