@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize animations
     initAnimations();
     
+    // Apply mobile detection
+    applyMobileOptimizations();
+    
     // Reveal elements on scroll
     window.addEventListener('scroll', revealOnScroll);
     revealOnScroll(); // Initial check
@@ -25,7 +28,44 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Remove the mouse effect but keep the floating tire animations
     setupFloatingTires();
+    
+    // Fix for horizontal scrolling issues
+    fixMobileViewport();
 });
+
+// Apply mobile-specific optimizations
+function applyMobileOptimizations() {
+    // Detect if we're on a mobile device
+    const isMobile = window.innerWidth <= 767;
+    
+    if (isMobile) {
+        document.body.classList.add('mobile-view');
+        
+        // Pre-load critical elements
+        const heroSection = document.querySelector('.hero');
+        const infoSection = document.querySelector('.info-band');
+        
+        if (heroSection && infoSection) {
+            // Adjust heights automatically based on content
+            const navHeight = document.querySelector('.navbar')?.offsetHeight || 0;
+            
+            // Make sure info section is visible initially
+            const heroHeight = window.innerHeight - navHeight - infoSection.offsetHeight;
+            heroSection.style.minHeight = `${heroHeight}px`;
+            
+        }
+    }
+    
+    // Handle orientation changes
+    window.addEventListener('resize', function() {
+        const currentIsMobile = window.innerWidth <= 767;
+        
+        // If switching between mobile/desktop views, reload for clean CSS application
+        if (currentIsMobile !== isMobile) {
+            location.reload();
+        }
+    });
+}
 
 // Setup floating tires without mouse interaction
 function setupFloatingTires() {
@@ -43,6 +83,41 @@ function setupFloatingTires() {
 function initHeroParallax() {
     // This function is kept empty to prevent any previous code from breaking
     // The floating tire animations are now handled entirely by CSS
+}
+
+// Function to fix viewport and scrolling issues
+function fixMobileViewport() {
+    // Prevent horizontal overscroll on mobile
+    document.body.addEventListener('touchmove', function(event) {
+        if (document.body.scrollWidth <= window.innerWidth) {
+            event.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Set proper viewport width on mobile
+    function updateViewportWidth() {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        
+        if (viewport) {
+            // Force layout width to match visual viewport
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
+        }
+        
+        // Make sure no element is wider than the viewport
+        const allElements = document.querySelectorAll('*');
+        const windowWidth = window.innerWidth;
+        
+        allElements.forEach(element => {
+            if (element.offsetWidth > windowWidth) {
+                element.style.maxWidth = '100%';
+                element.style.boxSizing = 'border-box';
+            }
+        });
+    }
+    
+    // Run on page load and resize
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
 }
 
 // Other existing functions remain the same

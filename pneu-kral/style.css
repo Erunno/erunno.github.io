@@ -17,6 +17,13 @@
   box-sizing: border-box;
 }
 
+/* Base container fixes to prevent horizontal scrolling */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -29,10 +36,11 @@ body {
 }
 
 .container {
-  width: 100%;
+  width: calc(100% - 30px);
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 15px;
+  box-sizing: border-box;
 }
 
 a {
@@ -104,6 +112,9 @@ a:hover {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   z-index: 1000;
   transition: var(--transition);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .navbar.scrolled {
@@ -114,6 +125,9 @@ a:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .logo-small {
@@ -153,7 +167,7 @@ a:hover {
   color: white;
   margin-top: 60px;
   overflow: hidden;
-  /* min-height: 500px; */
+  min-height: 500px;
   /* max-height: 650px; */
 }
 
@@ -742,4 +756,234 @@ section {
 
 .footer-contact a:hover {
   color: var(--secondary-color);
+}
+
+/* Mobile navigation and hero styling */
+@media (max-width: 767px) {
+  /* Reset and set base rules */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Mobile navbar redesign */
+  .navbar {
+    height: auto;
+    padding: 5px 0;
+    background-color: var(--primary-color);
+  }
+  
+  .navbar-content {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0px;
+  }
+  
+  .logo-small {
+    display: flex;
+    align-items: center;
+  }
+  
+  .logo-icon {
+    width: 30px;
+    height: 30px;
+    margin-right: 5px;
+    filter: brightness(0) invert(1); /* Make logo white */
+  }
+  
+  .logo-text {
+    color: white;
+    font-size: 0.9rem;
+    max-width: 100px;
+    line-height: 1.1;
+  }
+  
+  /* Mobile call button */
+  .contact-quick a.phone-link {
+    background-color: var(--accent-color);
+    color: var(--primary-color);
+    border-radius: 50px;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  
+  .phone-link i {
+    font-size: 1rem;
+    animation: none;
+  }
+
+  /* Mobile hero redesign - completely different approach */
+  .hero {
+    height: auto;
+    /* min-height: 0; */
+    max-height: none;
+    padding: 40px 0 20px;
+    margin-top: 50px;
+    background: linear-gradient(to bottom, var(--primary-color), #152d54);
+    display: block;
+    overflow: visible;
+    position: relative;
+  }
+  
+  /* Remove complex animations and patterns for mobile */
+  .hero::before,
+  .tire-path,
+  .hero-overlay {
+    display: none;
+  }
+  
+  /* Simplify floating tires for mobile */
+  .floating-tire {
+    opacity: 0.15;
+    width: 80px !important;
+    height: 80px !important;
+  }
+  
+  .floating-tire:nth-of-type(1) {
+    top: 10%;
+    left: -10%;
+  }
+  
+  .floating-tire:nth-of-type(2) {
+    bottom: 50%;
+    right: -10%;
+  }
+  
+  .floating-tire:nth-of-type(3) {
+    display: none;
+  }
+  
+  /* Mobile hero content */
+  .hero-content {
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    text-align: center;
+    backdrop-filter: none;
+    border: none;
+  }
+  
+  .hero-logo {
+    max-width: 130px;
+    margin-bottom: 15px;
+  }
+  
+  .hero h1 {
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  }
+  
+  .hero h1::after {
+    width: 60px;
+    height: 2px;
+    bottom: -5px;
+  }
+  
+  .tagline {
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
+  
+  /* Mobile hero buttons */
+  .hero-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    max-width: 240px;
+    margin: 15px auto 0;
+  }
+  
+  .hero-buttons .btn {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+  
+  /* Add tire tracks at the bottom for design */
+  .mobile-tire-track {
+    display: block;
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    background-image: 
+      linear-gradient(to right, transparent 0%, var(--accent-color) 50%, transparent 100%);
+    opacity: 0.2;
+    border-radius: 5px;
+  }
+  
+  /* Info band for mobile */
+  .info-band {
+    background-color: white;
+    color: var(--primary-color);
+    border-top: none;
+    border-bottom: 1px solid #e1e1e1;
+    margin-bottom: 20px;
+  }
+  
+  .info-items {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0;
+  }
+  
+  .info-item {
+    justify-content: center;
+    margin: 0;
+  }
+  
+  .info-item i {
+    color: var(--primary-color);
+    opacity: 0.8;
+  }
+  
+  .info-band span {
+    display: inline-block;
+    word-break: keep-all;
+    max-width: 100%;
+  }
+}
+
+/* Ultra-small screens */
+@media (max-width: 320px) {
+  .contact-quick a.phone-link {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+  
+  .logo-text {
+    font-size: 0.8rem;
+    max-width: 80px;
+  }
+}
+
+/* Very small devices - additional tweaks */
+@media (max-width: 350px) {
+  .navbar-content {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .logo-small {
+    margin-right: 0;
+  }
+  
+  .contact-quick {
+    width: 100%;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .hero {
+    margin-top: 85px; /* Adjust for two-row navbar */
+  }
 }
