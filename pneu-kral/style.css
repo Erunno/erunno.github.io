@@ -147,6 +147,10 @@ a:hover {
   color: var(--primary-color);
 }
 
+.logo-text span.company-name {
+  font-size: larger;
+}
+
 .contact-quick a {
   font-weight: bold;
   font-size: 1.1rem;
@@ -388,6 +392,10 @@ a:hover {
   display: flex;
   align-items: center;
   margin: 5px 10px;
+}
+
+.info-item a {
+  color: white;
 }
 
 .info-item i {
@@ -727,9 +735,17 @@ section {
   .info-item {
     margin: 5px 0;
   }
+
+  .info-item a {
+    color: var(--primary-color);
+  }
   
   .hero-logo {
     max-width: 200px;
+  }
+
+  .navbar .container {
+    padding: 0;
   }
 }
 
@@ -796,6 +812,8 @@ section {
     font-size: 0.9rem;
     max-width: 100px;
     line-height: 1.1;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
   
   /* Mobile call button */
