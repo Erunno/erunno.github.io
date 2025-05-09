@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game of Life with Tiled Optimization</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --border: #ced4da;
+            --sidebar-width: 280px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background-color: var(--light);
+            height: 100vh;
+            overflow: hidden;
+            color: var(--dark);
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+        
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        
+        #canvas {
+            border: 1px solid var(--border);
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        
+        .panel {
+            background-color: var(--light);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.05);
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-align: center;
+        }
+        
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        button#start {
+            background-color: var(--success);
+        }
+        
+        button#start:hover {
+            background-color: #27ae60;
+        }
+        
+        .params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .params label {
+            font-weight: 500;
+        }
+        
+        .params input {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 100%;
+        }
+        
+        .legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-height: 40vh;
+                order: 2;
+            }
+            
+            .content {
+                order: 1;
+                height: 60vh;
+            }
+            
+            .params {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Game of Life</h1>
+            
+            <div class="panel">
+                <h2>Parameters</h2>
+                <div class="params">
+                    <label for="gridSize">Grid Size:</label>
+                    <input type="number" id="gridSize" value="100" min="20" max="200">
+                    
+                    <label for="tileSize">Tile Size:</label>
+                    <input type="number" id="tileSize" value="10" min="5" max="20">
+                    
+                    <label for="cellSize">Cell Size (px):</label>
+                    <input type="number" id="cellSize" value="8" min="2" max="20">
+                    
+                    <label for="speed">Speed (ms):</label>
+                    <input type="number" id="speed" value="100" min="10" max="1000">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>Controls</h2>
+                <div class="controls">
+                    <button id="start">Start</button>
+                    <button id="stop">Stop</button>
+                    <button id="reset">Reset</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>Legend</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="color-box" style="background-color: rgba(46, 204, 113, 0.3);"></div>
+                        <span>Active Tile</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background-color: rgba(243, 156, 18, 0.3);"></div>
+                        <span>Border Tile</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background-color: rgba(200, 200, 200, 0.2);"></div>
+                        <span>Inactive Tile</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background-color: #212529;"></div>
+                        <span>Live Cell</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let config = {
+            gridSize: 100, // Number of cells in each dimension
+            tileSize: 10, // Size of each tile in cells
+            cellSize: 8,  // Size of each cell in pixels
+            speed: 100   // Milliseconds between updates
+        };
+
+        // Game state
+        const grid = {
+            cells: [],    // 2D array of cell states (0 or 1)
+            tiles: [],    // 2D array of tile states (0 = inactive, 1 = border, 2 = active)
+            activeTiles: new Set() // Set of active tile coordinates as "x,y" strings
+        };
+
+        // Get elements
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('start');
+        const stopBtn = document.getElementById('stop');
+        const resetBtn = document.getElementById('reset');
+
+        // Setup parameter controls
+        const gridSizeInput = document.getElementById('gridSize');
+        const tileSizeInput = document.getElementById('tileSize');
+        const cellSizeInput = document.getElementById('cellSize');
+        const speedInput = document.getElementById('speed');
+
+        gridSizeInput.addEventListener('change', () => {
+            config.gridSize = parseInt(gridSizeInput.value);
+            resetGrid();
+        });
+
+        tileSizeInput.addEventListener('change', () => {
+            config.tileSize = parseInt(tileSizeInput.value);
+            resetGrid();
+        });
+
+        cellSizeInput.addEventListener('change', () => {
+            const newCellSize = parseInt(cellSizeInput.value);
+            if (newCellSize > 0) {
+                config.cellSize = newCellSize;
+                const size = config.gridSize * config.cellSize;
+                canvas.width = size;
+                canvas.height = size;
+                drawGrid();
+            }
+        });
+
+        speedInput.addEventListener('change', () => {
+            config.speed = parseInt(speedInput.value);
+            if (animationId) {
+                stopAnimation();
+                startAnimation();
+            }
+        });
+
+        // Animation control
+        let animationId = null;
+
+        startBtn.addEventListener('click', startAnimation);
+        stopBtn.addEventListener('click', stopAnimation);
+        resetBtn.addEventListener('click', resetGrid);
+
+        function startAnimation() {
+            if (!animationId) {
+                animationId = setInterval(update, config.speed);
+            }
+        }
+
+        function stopAnimation() {
+            if (animationId) {
+                clearInterval(animationId);
+                animationId = null;
+            }
+        }
+
+        function updateCanvasSize() {
+            // Get available space in the content area
+            const contentArea = document.querySelector('.content');
+            const availableWidth = contentArea.clientWidth - 40; // 40px for padding
+            const availableHeight = contentArea.clientHeight - 40;
+            
+            // Determine the maximum cell size that fits within the available space
+            const maxWidthCellSize = Math.floor(availableWidth / config.gridSize);
+            const maxHeightCellSize = Math.floor(availableHeight / config.gridSize);
+            
+            // Use the smaller of the two to ensure the grid fits in both dimensions
+            config.cellSize = Math.max(1, Math.min(maxWidthCellSize, maxHeightCellSize));
+            
+            // Update the cellSize input to reflect the new calculated value
+            cellSizeInput.value = config.cellSize;
+            
+            // Set canvas dimensions
+            const size = config.gridSize * config.cellSize;
+            canvas.width = size;
+            canvas.height = size;
+        }
+
+        // Add window resize handler
+        window.addEventListener('resize', () => {
+            updateCanvasSize();
+            drawGrid();
+        });
+
+        // Initialize grid with a glider pattern
+        function initializeGrid() {
+            // Create empty grid
+            grid.cells = Array(config.gridSize).fill().map(() => Array(config.gridSize).fill(0));
+            
+            // Add a glider in the (1,1) tile
+            // Calculate the starting position within the (1,1) tile
+            const offsetX = config.tileSize + 1; // 1 cell into the second tile horizontally
+            const offsetY = config.tileSize + 1; // 1 cell into the second tile vertically
+            
+            // Glider pattern:
+            // .O.
+            // ..O
+            // OOO
+            grid.cells[offsetX + 1][offsetY] = 1;
+            grid.cells[offsetX + 2][offsetY + 1] = 1;
+            grid.cells[offsetX][offsetY + 2] = 1;
+            grid.cells[offsetX + 1][offsetY + 2] = 1;
+            grid.cells[offsetX + 2][offsetY + 2] = 1;
+
+            // Initialize tiles
+            const tilesCount = Math.ceil(config.gridSize / config.tileSize);
+            grid.tiles = Array(tilesCount).fill().map(() => Array(tilesCount).fill(0));
+            
+            // Initialize active tiles
+            grid.activeTiles.clear();
+            
+            // Find tiles that contain live cells
+            for (let x = 0; x < config.gridSize; x++) {
+                for (let y = 0; y < config.gridSize; y++) {
+                    if (grid.cells[x][y] === 1) {
+                        const tx = Math.floor(x / config.tileSize);
+                        const ty = Math.floor(y / config.tileSize);
+                        grid.activeTiles.add(`${tx},${ty}`);
+                    }
+                }
+            }
+            
+            // Initialize neighboring tiles for toroidal grid
+            const activeTileKeys = [...grid.activeTiles];
+            const borderTiles = new Set();
+            
+            for (const key of activeTileKeys) {
+                const [tx, ty] = key.split(',').map(Number);
+                
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        if (dx === 0 && dy === 0) continue;
+                        
+                        const nx = (tx + dx + tilesCount) % tilesCount;
+                        const ny = (ty + dy + tilesCount) % tilesCount;
+                        
+                        const borderKey = `${nx},${ny}`;
+                        if (!grid.activeTiles.has(borderKey)) {
+                            borderTiles.add(borderKey);
+                        }
+                    }
+                }
+            }
+            
+            // Set tile states
+            grid.tiles = Array(tilesCount).fill().map(() => Array(tilesCount).fill(0));
+            
+            // Mark active tiles
+            for (const key of grid.activeTiles) {
+                const [tx, ty] = key.split(',').map(Number);
+                grid.tiles[tx][ty] = 2; // Active
+            }
+            
+            // Mark border tiles
+            for (const key of borderTiles) {
+                const [tx, ty] = key.split(',').map(Number);
+                grid.tiles[tx][ty] = 1; // Border
+            }
+        }
+
+        function resetGrid() {
+            stopAnimation();
+            updateCanvasSize();
+            initializeGrid();
+            drawGrid();
+        }
+
+        // Calculate the next generation
+        function update() {
+            // Get active tiles for processing
+            const tilesToProcess = new Set();
+            
+            // Add active tiles and their neighbors with toroidal wrapping
+            for (const key of grid.activeTiles) {
+                const [tx, ty] = key.split(',').map(Number);
+                tilesToProcess.add(key);
+                
+                // Add neighboring tiles with wrapping for toroidal grid
+                const tilesCount = Math.ceil(config.gridSize / config.tileSize);
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        if (dx === 0 && dy === 0) continue;
+                        
+                        // Use modulo to wrap around edges
+                        const nx = (tx + dx + tilesCount) % tilesCount;
+                        const ny = (ty + dy + tilesCount) % tilesCount;
+                        
+                        tilesToProcess.add(`${nx},${ny}`);
+                    }
+                }
+            }
+            
+            // Create a copy of the current grid
+            const newGrid = Array(config.gridSize).fill().map((_, i) => [...grid.cells[i]]);
+            
+            // Keep track of tiles that actually have changes or living cells
+            const changedTiles = new Set();
+            const liveCellTiles = new Set();
+            
+            // Process tiles
+            for (const key of tilesToProcess) {
+                const [tx, ty] = key.split(',').map(Number);
+                
+                // Process cells in this tile
+                const startX = tx * config.tileSize;
+                const startY = ty * config.tileSize;
+                const endX = Math.min(startX + config.tileSize, config.gridSize);
+                const endY = Math.min(startY + config.tileSize, config.gridSize);
+                
+                let tileChanged = false;
+                let hasLiveCells = false;
+                
+                // Process cells with toroidal wrapping
+                for (let xOffset = -1; xOffset <= config.tileSize; xOffset++) {
+                    for (let yOffset = -1; yOffset <= config.tileSize; yOffset++) {
+                        const x = (startX + xOffset + config.gridSize) % config.gridSize;
+                        const y = (startY + yOffset + config.gridSize) % config.gridSize;
+                        
+                        const neighbors = countNeighborsToroidal(x, y);
+                        
+                        // Apply Game of Life rules
+                        if (grid.cells[x][y] === 1 && (neighbors < 2 || neighbors > 3)) {
+                            newGrid[x][y] = 0;
+                            tileChanged = true;
+                        } else if (grid.cells[x][y] === 0 && neighbors === 3) {
+                            newGrid[x][y] = 1;
+                            tileChanged = true;
+                        }
+                        
+                        // Check if this cell will be alive in the new state and belongs to this tile
+                        const inTileBoundsX = xOffset >= 0 && xOffset < config.tileSize;
+                        const inTileBoundsY = yOffset >= 0 && yOffset < config.tileSize;
+                        
+                        if (newGrid[x][y] === 1 && inTileBoundsX && inTileBoundsY) {
+                            hasLiveCells = true;
+                        }
+                    }
+                }
+                
+                // Mark tile as changed if it has actual changes
+                if (tileChanged) {
+                    changedTiles.add(key);
+                }
+                
+                // Track tiles with living cells separately
+                if (hasLiveCells) {
+                    liveCellTiles.add(key);
+                }
+            }
+            
+            // Update the grid
+            grid.cells = newGrid;
+            
+            // Update active tiles to be only those that changed
+            grid.activeTiles = changedTiles;
+            
+            // Reset tile states
+            const tilesCount = Math.ceil(config.gridSize / config.tileSize);
+            grid.tiles = Array(tilesCount).fill().map(() => Array(tilesCount).fill(0));
+            
+            // Mark tiles with changes as active (green)
+            for (const key of changedTiles) {
+                const [tx, ty] = key.split(',').map(Number);
+                grid.tiles[tx][ty] = 2; // Active
+            }
+            
+            // Mark tiles with living cells but no changes as border (yellow)
+            for (const key of liveCellTiles) {
+                const [tx, ty] = key.split(',').map(Number);
+                if (grid.tiles[tx][ty] !== 2) { // If not already marked as active
+                    grid.tiles[tx][ty] = 1; // Border
+                }
+            }
+            
+            // Mark border tiles around active tiles
+            for (const key of changedTiles) {
+                const [tx, ty] = key.split(',').map(Number);
+                
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        if (dx === 0 && dy === 0) continue;
+                        
+                        const nx = (tx + dx + tilesCount) % tilesCount;
+                        const ny = (ty + dy + tilesCount) % tilesCount;
+                        
+                        if (grid.tiles[nx][ny] === 0) { // If not already marked
+                            grid.tiles[nx][ny] = 1; // Border
+                        }
+                    }
+                }
+            }
+            
+            // Draw the grid
+            drawGrid();
+        }
+
+        // Replace the old countNeighbors with a toroidal version
+        function countNeighborsToroidal(x, y) {
+            let count = 0;
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    if (dx === 0 && dy === 0) continue;
+                    
+                    // Use modulo to wrap around edges for toroidal grid
+                    const nx = (x + dx + config.gridSize) % config.gridSize;
+                    const ny = (y + dy + config.gridSize) % config.gridSize;
+                    
+                    count += grid.cells[nx][ny];
+                }
+            }
+            return count;
+        }
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw tile backgrounds
+            const tilesCount = Math.ceil(config.gridSize / config.tileSize);
+            for (let tx = 0; tx < tilesCount; tx++) {
+                for (let ty = 0; ty < tilesCount; ty++) {
+                    const tileState = grid.tiles[tx][ty];
+                    
+                    if (tileState === 2) {
+                        // Active tile
+                        ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
+                    } else if (tileState === 1) {
+                        // Border tile
+                        ctx.fillStyle = 'rgba(243, 156, 18, 0.3)';
+                    } else {
+                        // Inactive tile
+                        ctx.fillStyle = 'rgba(200, 200, 200, 0.2)';
+                    }
+                    
+                    ctx.fillRect(
+                        tx * config.tileSize * config.cellSize,
+                        ty * config.tileSize * config.cellSize,
+                        config.tileSize * config.cellSize,
+                        config.tileSize * config.cellSize
+                    );
+                    
+                    // Draw tile grid
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                    ctx.strokeRect(
+                        tx * config.tileSize * config.cellSize,
+                        ty * config.tileSize * config.cellSize,
+                        config.tileSize * config.cellSize,
+                        config.tileSize * config.cellSize
+                    );
+                }
+            }
+            
+            // Draw cells
+            ctx.fillStyle = '#212529';
+            for (let x = 0; x < config.gridSize; x++) {
+                for (let y = 0; y < config.gridSize; y++) {
+                    if (grid.cells[x][y] === 1) {
+                        ctx.fillRect(
+                            x * config.cellSize,
+                            y * config.cellSize,
+                            config.cellSize,
+                            config.cellSize
+                        );
+                    }
+                }
+            }
+        }
+
+        // Initialize the game
+        resetGrid();
+        
+        // Auto-start the simulation
+        startAnimation();
+    </script>
+</body>
+</html>
