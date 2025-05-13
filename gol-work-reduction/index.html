@@ -147,6 +147,70 @@
             border-radius: 4px;
         }
         
+        .switch-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .incorrect-label {
+            color: #e74c3c;
+            font-weight: 500;
+            margin-left: 5px;
+            font-size: 0.85rem;
+        }
+        
+        .demo-section {
+            margin-top: 10px;
+        }
+
         /* Mobile Styles */
         @media (max-width: 768px) {
             .container {
@@ -202,6 +266,44 @@
             </div>
             
             <div class="panel">
+                <h2>Demo Options</h2>
+                <div class="demo-options">
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="showTileGrid" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Show Tile Grid</span>
+                    </div>
+                    
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="showActiveTiles" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Show Active Tiles</span>
+                    </div>
+                    
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="showBorderTiles" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Show Border Tiles</span>
+                    </div>
+                    
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="skipNeighborComputation">
+                            <span class="slider"></span>
+                        </label>
+                        <span>Skip Neighbor Computation</span>
+                        <span class="incorrect-label">(Incorrect)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
                 <h2>Legend</h2>
                 <div class="legend">
                     <div class="legend-item">
@@ -235,7 +337,11 @@
             gridSize: 100, // Number of cells in each dimension
             tileSize: 10, // Size of each tile in cells
             cellSize: 8,  // Size of each cell in pixels
-            speed: 100   // Milliseconds between updates
+            speed: 100,   // Milliseconds between updates
+            showTileGrid: true,          // Show tile grid lines
+            showActiveTiles: true,       // Show active tiles (green)
+            showBorderTiles: true,       // Show border tiles (yellow)
+            skipNeighborComputation: false // Skip neighbor computation (for demo)
         };
 
         // Game state
@@ -257,6 +363,34 @@
         const tileSizeInput = document.getElementById('tileSize');
         const cellSizeInput = document.getElementById('cellSize');
         const speedInput = document.getElementById('speed');
+
+        // Setup demo option controls
+        const showTileGridToggle = document.getElementById('showTileGrid');
+        const showActiveTilesToggle = document.getElementById('showActiveTiles');
+        const showBorderTilesToggle = document.getElementById('showBorderTiles');
+        const skipNeighborComputationToggle = document.getElementById('skipNeighborComputation');
+
+        // Demo option event listeners
+        showTileGridToggle.addEventListener('change', () => {
+            config.showTileGrid = showTileGridToggle.checked;
+            drawGrid();
+        });
+
+        showActiveTilesToggle.addEventListener('change', () => {
+            config.showActiveTiles = showActiveTilesToggle.checked;
+            drawGrid();
+        });
+
+        showBorderTilesToggle.addEventListener('change', () => {
+            config.showBorderTiles = showBorderTilesToggle.checked;
+            drawGrid();
+        });
+
+        skipNeighborComputationToggle.addEventListener('change', () => {
+            config.skipNeighborComputation = skipNeighborComputationToggle.checked;
+            // Reset the grid when toggling this option to see the effect from the beginning
+            resetGrid();
+        });
 
         gridSizeInput.addEventListener('change', () => {
             config.gridSize = parseInt(gridSizeInput.value);
@@ -429,16 +563,19 @@
                 tilesToProcess.add(key);
                 
                 // Add neighboring tiles with wrapping for toroidal grid
-                const tilesCount = Math.ceil(config.gridSize / config.tileSize);
-                for (let dx = -1; dx <= 1; dx++) {
-                    for (let dy = -1; dy <= 1; dy++) {
-                        if (dx === 0 && dy === 0) continue;
-                        
-                        // Use modulo to wrap around edges
-                        const nx = (tx + dx + tilesCount) % tilesCount;
-                        const ny = (ty + dy + tilesCount) % tilesCount;
-                        
-                        tilesToProcess.add(`${nx},${ny}`);
+                // Only if we're not in the "skip neighbor computation" demo mode
+                if (!config.skipNeighborComputation) {
+                    const tilesCount = Math.ceil(config.gridSize / config.tileSize);
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+                            
+                            // Use modulo to wrap around edges
+                            const nx = (tx + dx + tilesCount) % tilesCount;
+                            const ny = (ty + dy + tilesCount) % tilesCount;
+                            
+                            tilesToProcess.add(`${nx},${ny}`);
+                        }
                     }
                 }
             }
@@ -463,29 +600,52 @@
                 let tileChanged = false;
                 let hasLiveCells = false;
                 
-                // Process cells with toroidal wrapping
-                for (let xOffset = -1; xOffset <= config.tileSize; xOffset++) {
-                    for (let yOffset = -1; yOffset <= config.tileSize; yOffset++) {
-                        const x = (startX + xOffset + config.gridSize) % config.gridSize;
-                        const y = (startY + yOffset + config.gridSize) % config.gridSize;
-                        
-                        const neighbors = countNeighborsToroidal(x, y);
-                        
-                        // Apply Game of Life rules
-                        if (grid.cells[x][y] === 1 && (neighbors < 2 || neighbors > 3)) {
-                            newGrid[x][y] = 0;
-                            tileChanged = true;
-                        } else if (grid.cells[x][y] === 0 && neighbors === 3) {
-                            newGrid[x][y] = 1;
-                            tileChanged = true;
+                // If we're skipping neighbor computation, we can only update cells strictly within the tile
+                if (config.skipNeighborComputation) {
+                    // Only process cells strictly within this tile
+                    for (let x = startX; x < endX; x++) {
+                        for (let y = startY; y < endY; y++) {
+                            const neighbors = countNeighborsToroidal(x, y);
+                            
+                            // Apply Game of Life rules
+                            if (grid.cells[x][y] === 1 && (neighbors < 2 || neighbors > 3)) {
+                                newGrid[x][y] = 0;
+                                tileChanged = true;
+                            } else if (grid.cells[x][y] === 0 && neighbors === 3) {
+                                newGrid[x][y] = 1;
+                                tileChanged = true;
+                            }
+                            
+                            if (newGrid[x][y] === 1) {
+                                hasLiveCells = true;
+                            }
                         }
-                        
-                        // Check if this cell will be alive in the new state and belongs to this tile
-                        const inTileBoundsX = xOffset >= 0 && xOffset < config.tileSize;
-                        const inTileBoundsY = yOffset >= 0 && yOffset < config.tileSize;
-                        
-                        if (newGrid[x][y] === 1 && inTileBoundsX && inTileBoundsY) {
-                            hasLiveCells = true;
+                    }
+                } else {
+                    // Process cells including the border cells (standard mode)
+                    for (let xOffset = -1; xOffset <= config.tileSize; xOffset++) {
+                        for (let yOffset = -1; yOffset <= config.tileSize; yOffset++) {
+                            const x = (startX + xOffset + config.gridSize) % config.gridSize;
+                            const y = (startY + yOffset + config.gridSize) % config.gridSize;
+                            
+                            const neighbors = countNeighborsToroidal(x, y);
+                            
+                            // Apply Game of Life rules
+                            if (grid.cells[x][y] === 1 && (neighbors < 2 || neighbors > 3)) {
+                                newGrid[x][y] = 0;
+                                tileChanged = true;
+                            } else if (grid.cells[x][y] === 0 && neighbors === 3) {
+                                newGrid[x][y] = 1;
+                                tileChanged = true;
+                            }
+                            
+                            // Check if this cell will be alive in the new state and belongs to this tile
+                            const inTileBoundsX = xOffset >= 0 && xOffset < config.tileSize;
+                            const inTileBoundsY = yOffset >= 0 && yOffset < config.tileSize;
+                            
+                            if (newGrid[x][y] === 1 && inTileBoundsX && inTileBoundsY) {
+                                hasLiveCells = true;
+                            }
                         }
                     }
                 }
@@ -526,18 +686,20 @@
             }
             
             // Mark border tiles around active tiles
-            for (const key of changedTiles) {
-                const [tx, ty] = key.split(',').map(Number);
-                
-                for (let dx = -1; dx <= 1; dx++) {
-                    for (let dy = -1; dy <= 1; dy++) {
-                        if (dx === 0 && dy === 0) continue;
-                        
-                        const nx = (tx + dx + tilesCount) % tilesCount;
-                        const ny = (ty + dy + tilesCount) % tilesCount;
-                        
-                        if (grid.tiles[nx][ny] === 0) { // If not already marked
-                            grid.tiles[nx][ny] = 1; // Border
+            if (!config.skipNeighborComputation) {
+                for (const key of changedTiles) {
+                    const [tx, ty] = key.split(',').map(Number);
+                    
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+                            
+                            const nx = (tx + dx + tilesCount) % tilesCount;
+                            const ny = (ty + dy + tilesCount) % tilesCount;
+                            
+                            if (grid.tiles[nx][ny] === 0) { // If not already marked
+                                grid.tiles[nx][ny] = 1; // Border
+                            }
                         }
                     }
                 }
@@ -567,38 +729,57 @@
         function drawGrid() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw tile backgrounds
+            // Draw tile backgrounds based on configuration
             const tilesCount = Math.ceil(config.gridSize / config.tileSize);
             for (let tx = 0; tx < tilesCount; tx++) {
                 for (let ty = 0; ty < tilesCount; ty++) {
                     const tileState = grid.tiles[tx][ty];
                     
-                    if (tileState === 2) {
+                    // Set background color based on tile state and configuration
+                    if (tileState === 2 && config.showActiveTiles) {
                         // Active tile
                         ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
-                    } else if (tileState === 1) {
+                        ctx.fillRect(
+                            tx * config.tileSize * config.cellSize,
+                            ty * config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize
+                        );
+                    } else if (tileState === 1 && config.showBorderTiles) {
                         // Border tile
                         ctx.fillStyle = 'rgba(243, 156, 18, 0.3)';
+                        ctx.fillRect(
+                            tx * config.tileSize * config.cellSize,
+                            ty * config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize
+                        );
                     } else {
-                        // Inactive tile
-                        ctx.fillStyle = 'rgba(200, 200, 200, 0.2)';
+                        // Inactive tile - always show a subtle background
+                        ctx.fillStyle = 'rgba(200, 200, 200, 0.1)';
+                        ctx.fillRect(
+                            tx * config.tileSize * config.cellSize,
+                            ty * config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize
+                        );
                     }
-                    
-                    ctx.fillRect(
-                        tx * config.tileSize * config.cellSize,
-                        ty * config.tileSize * config.cellSize,
-                        config.tileSize * config.cellSize,
-                        config.tileSize * config.cellSize
-                    );
-                    
-                    // Draw tile grid
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-                    ctx.strokeRect(
-                        tx * config.tileSize * config.cellSize,
-                        ty * config.tileSize * config.cellSize,
-                        config.tileSize * config.cellSize,
-                        config.tileSize * config.cellSize
-                    );
+                }
+            }
+            
+            // Draw tile grid lines if grid is enabled
+            if (config.showTileGrid) {
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                const tilesCount = Math.ceil(config.gridSize / config.tileSize);
+                for (let tx = 0; tx < tilesCount; tx++) {
+                    for (let ty = 0; ty < tilesCount; ty++) {
+                        ctx.strokeRect(
+                            tx * config.tileSize * config.cellSize,
+                            ty * config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize,
+                            config.tileSize * config.cellSize
+                        );
+                    }
                 }
             }
             
