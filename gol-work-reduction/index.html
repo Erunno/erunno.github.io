@@ -103,12 +103,20 @@
             background-color: var(--primary-dark);
         }
         
-        button#start {
+        button#togglePlay {
             background-color: var(--success);
         }
         
-        button#start:hover {
+        button#togglePlay:hover {
             background-color: #27ae60;
+        }
+        
+        button#togglePlay.stop {
+            background-color: #e74c3c;
+        }
+        
+        button#togglePlay.stop:hover {
+            background-color: #c0392b;
         }
         
         .params {
@@ -259,8 +267,7 @@
             <div class="panel">
                 <h2>Controls</h2>
                 <div class="controls">
-                    <button id="start">Start</button>
-                    <button id="stop">Stop</button>
+                    <button id="togglePlay">Start</button>
                     <button id="reset">Reset</button>
                 </div>
             </div>
@@ -354,8 +361,7 @@
         // Get elements
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const startBtn = document.getElementById('start');
-        const stopBtn = document.getElementById('stop');
+        const togglePlayBtn = document.getElementById('togglePlay');
         const resetBtn = document.getElementById('reset');
 
         // Setup parameter controls
@@ -424,9 +430,20 @@
         // Animation control
         let animationId = null;
 
-        startBtn.addEventListener('click', startAnimation);
-        stopBtn.addEventListener('click', stopAnimation);
+        togglePlayBtn.addEventListener('click', togglePlayPause);
         resetBtn.addEventListener('click', resetGrid);
+
+        function togglePlayPause() {
+            if (animationId) {
+                stopAnimation();
+                togglePlayBtn.textContent = 'Start';
+                togglePlayBtn.classList.remove('stop');
+            } else {
+                startAnimation();
+                togglePlayBtn.textContent = 'Stop';
+                togglePlayBtn.classList.add('stop');
+            }
+        }
 
         function startAnimation() {
             if (!animationId) {
@@ -547,6 +564,8 @@
 
         function resetGrid() {
             stopAnimation();
+            togglePlayBtn.textContent = 'Start';
+            togglePlayBtn.classList.remove('stop');
             updateCanvasSize();
             initializeGrid();
             drawGrid();
@@ -804,6 +823,8 @@
         
         // Auto-start the simulation
         startAnimation();
+        togglePlayBtn.textContent = 'Stop';
+        togglePlayBtn.classList.add('stop');
     </script>
 </body>
 </html>
