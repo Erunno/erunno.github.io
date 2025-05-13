@@ -270,7 +270,7 @@
                 <div class="demo-options">
                     <div class="switch-container">
                         <label class="switch">
-                            <input type="checkbox" id="showTileGrid" checked>
+                            <input type="checkbox" id="showTileGrid">
                             <span class="slider"></span>
                         </label>
                         <span>Show Tile Grid</span>
@@ -278,7 +278,7 @@
                     
                     <div class="switch-container">
                         <label class="switch">
-                            <input type="checkbox" id="showActiveTiles" checked>
+                            <input type="checkbox" id="showActiveTiles">
                             <span class="slider"></span>
                         </label>
                         <span>Show Active Tiles</span>
@@ -286,7 +286,7 @@
                     
                     <div class="switch-container">
                         <label class="switch">
-                            <input type="checkbox" id="showBorderTiles" checked>
+                            <input type="checkbox" id="showBorderTiles">
                             <span class="slider"></span>
                         </label>
                         <span>Show Border Tiles</span>
@@ -338,9 +338,9 @@
             tileSize: 10, // Size of each tile in cells
             cellSize: 8,  // Size of each cell in pixels
             speed: 100,   // Milliseconds between updates
-            showTileGrid: true,          // Show tile grid lines
-            showActiveTiles: true,       // Show active tiles (green)
-            showBorderTiles: true,       // Show border tiles (yellow)
+            showTileGrid: false,         // Show tile grid lines
+            showActiveTiles: false,      // Show active tiles (green)
+            showBorderTiles: false,      // Show border tiles (yellow)
             skipNeighborComputation: false // Skip neighbor computation (for demo)
         };
 
