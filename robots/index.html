@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Simulation</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --border: #ced4da;
+            --sidebar-width: 280px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background-color: var(--light);
+            height: 100vh;
+            overflow: hidden;
+            color: var(--dark);
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+        
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        
+        #grid {
+            display: grid;
+            gap: 1px;
+            background-color: #eee;
+            width: fit-content;
+            border: 1px solid var(--border);
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        
+        .cell {
+            background-color: white;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .robot {
+            background-color: var(--primary);
+            border-radius: 50%;
+            width: 80%;
+            height: 80%;
+        }
+        
+        .wall {
+            background-color: var(--dark);
+        }
+        
+        .panel {
+            background-color: var(--light);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.05);
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-align: center;
+        }
+        
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .params label {
+            font-weight: 500;
+        }
+        
+        .params input {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 100%;
+        }
+        
+        button {
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        button#startBtn {
+            background-color: var(--success);
+        }
+        
+        button#startBtn:hover {
+            background-color: #27ae60;
+        }
+        
+        button#startBtn.stop {
+            background-color: var(--danger);
+        }
+        
+        button#startBtn.stop:hover {
+            background-color: #c0392b;
+        }
+        
+        .legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        .stats {
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-height: 40vh;
+                order: 2;
+            }
+            
+            .content {
+                order: 1;
+                height: 60vh;
+            }
+            
+            .params {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Robot Simulation</h1>
+            
+            <div class="panel">
+                <h2>Parameters</h2>
+                <div class="params">
+                    <label for="gridSize">Grid Size:</label>
+                    <input type="number" id="gridSize" min="5" max="100" value="50">
+                    
+                    <label for="robotCount">Number of Robots:</label>
+                    <input type="number" id="robotCount" min="1" max="100" value="60">
+                    
+                    <label for="wallCount">Number of Walls:</label>
+                    <input type="number" id="wallCount" min="0" max="500" value="80">
+                    
+                    <label for="speed">Speed (ms):</label>
+                    <input type="number" id="speed" min="50" max="2000" value="150" step="50">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>Controls</h2>
+                <div class="controls">
+                    <button id="startBtn">Start</button>
+                    <button id="resetBtn">Reset</button>
+                    <button id="cornerBtn">Place in One Corner</button>
+                    <button id="twoCornerBtn">Place in Two Corners</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>Legend</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="color-box" style="background-color: var(--primary);"></div>
+                        <span>Robot</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background-color: var(--dark);"></div>
+                        <span>Wall</span>
+                    </div>
+                </div>
+                <div class="stats">
+                    <p>Iteration: <span id="iteration">0</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div id="grid"></div>
+        </div>
+    </div>
+    
+    <script>
+        class Simulation {
+            constructor() {
+                this.grid = [];
+                this.robots = [];
+                this.gridSize = 0;
+                this.robotCount = 0;
+                this.wallCount = 0;
+                this.speed = 500;
+                this.iteration = 0;
+                this.intervalId = null;
+                this.cellSize = 30; // Default cell size in pixels
+                
+                // HTML elements
+                this.gridEl = document.getElementById('grid');
+                this.iterationEl = document.getElementById('iteration');
+                this.startBtn = document.getElementById('startBtn');
+                
+                // Add window resize handler
+                window.addEventListener('resize', () => {
+                    this.updateGridSize();
+                    this.render();
+                });
+                
+                // Initialize controls
+                this.initControls();
+            }
+            
+            initControls() {
+                this.startBtn.addEventListener('click', () => this.togglePlayPause());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('cornerBtn').addEventListener('click', () => this.placeRobotsInCorners(['top-left']));
+                document.getElementById('twoCornerBtn').addEventListener('click', () => this.placeRobotsInCorners(['top-left', 'bottom-right']));
+                
+                // Add event listeners for parameter changes
+                const gridSizeInput = document.getElementById('gridSize');
+                const robotCountInput = document.getElementById('robotCount');
+                const wallCountInput = document.getElementById('wallCount');
+                const speedInput = document.getElementById('speed');
+                
+                // Auto-reset when parameters change
+                gridSizeInput.addEventListener('change', () => this.reset());
+                robotCountInput.addEventListener('change', () => this.reset());
+                wallCountInput.addEventListener('change', () => this.reset());
+                speedInput.addEventListener('change', () => {
+                    // For speed changes, just update the speed without a full reset
+                    this.speed = parseInt(speedInput.value);
+                    
+                    // If animation is running, restart it with the new speed
+                    if (this.intervalId) {
+                        this.stop();
+                        this.start();
+                    }
+                });
+                
+                // Initial setup
+                this.reset();
+            }
+            
+            togglePlayPause() {
+                if (this.intervalId) {
+                    this.stop();
+                    this.startBtn.textContent = 'Start';
+                    this.startBtn.classList.remove('stop');
+                } else {
+                    this.start();
+                    this.startBtn.textContent = 'Stop';
+                    this.startBtn.classList.add('stop');
+                }
+            }
+            
+            reset() {
+                this.stop();
+                this.startBtn.textContent = 'Start';
+                this.startBtn.classList.remove('stop');
+                
+                // Get values from inputs
+                this.gridSize = parseInt(document.getElementById('gridSize').value);
+                this.robotCount = parseInt(document.getElementById('robotCount').value);
+                this.wallCount = parseInt(document.getElementById('wallCount').value);
+                this.speed = parseInt(document.getElementById('speed').value);
+                this.iteration = 0;
+                this.iterationEl.textContent = '0';
+                
+                // Create grid
+                this.createGrid();
+                this.placeWalls();
+                this.placeRobots();
+                this.render();
+            }
+            
+            updateGridSize() {
+                // Get available space in the content area
+                const contentArea = document.querySelector('.content');
+                const availableWidth = contentArea.clientWidth - 40; // 40px for padding
+                const availableHeight = contentArea.clientHeight - 40;
+                
+                // Calculate the maximum cell size that fits within the available space
+                const maxCellSizeWidth = Math.floor(availableWidth / this.gridSize);
+                const maxCellSizeHeight = Math.floor(availableHeight / this.gridSize);
+                
+                // Use the smaller dimension to ensure the grid fits in both directions
+                this.cellSize = Math.max(5, Math.min(maxCellSizeWidth, maxCellSizeHeight));
+                
+                // Update the grid CSS
+                this.gridEl.style.gridTemplateColumns = `repeat(${this.gridSize}, ${this.cellSize}px)`;
+                this.gridEl.style.gridTemplateRows = `repeat(${this.gridSize}, ${this.cellSize}px)`;
+                
+                // Update cell sizes
+                const cells = this.gridEl.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    cell.style.width = `${this.cellSize}px`;
+                    cell.style.height = `${this.cellSize}px`;
+                });
+            }
+            
+            createGrid() {
+                this.grid = [];
+                
+                // Initialize empty grid
+                for (let y = 0; y < this.gridSize; y++) {
+                    const row = [];
+                    for (let x = 0; x < this.gridSize; x++) {
+                        row.push({ type: 'empty', robot: null });
+                    }
+                    this.grid.push(row);
+                }
+                
+                // Set up grid CSS with responsive cell size
+                this.gridEl.innerHTML = '';
+                
+                // Create cell elements
+                for (let y = 0; y < this.gridSize; y++) {
+                    for (let x = 0; x < this.gridSize; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.x = x;
+                        cell.dataset.y = y;
+                        this.gridEl.appendChild(cell);
+                    }
+                }
+                
+                // Update grid size to fit screen
+                this.updateGridSize();
+            }
+            
+            placeWalls() {
+                let wallsPlaced = 0;
+                
+                while (wallsPlaced < this.wallCount) {
+                    const x = Math.floor(Math.random() * this.gridSize);
+                    const y = Math.floor(Math.random() * this.gridSize);
+                    
+                    if (this.grid[y][x].type === 'empty') {
+                        this.grid[y][x].type = 'wall';
+                        wallsPlaced++;
+                    }
+                }
+            }
+            
+            placeRobots() {
+                this.robots = [];
+                let robotsPlaced = 0;
+                
+                while (robotsPlaced < this.robotCount) {
+                    const x = Math.floor(Math.random() * this.gridSize);
+                    const y = Math.floor(Math.random() * this.gridSize);
+                    
+                    if (this.grid[y][x].type === 'empty') {
+                        const robot = { id: robotsPlaced, x, y };
+                        this.robots.push(robot);
+                        this.grid[y][x].type = 'robot';
+                        this.grid[y][x].robot = robot;
+                        robotsPlaced++;
+                    }
+                }
+            }
+            
+            placeRobotsInCorners(corners) {
+                // Stop any running simulation
+                this.stop();
+                this.startBtn.textContent = 'Start';
+                this.startBtn.classList.remove('stop');
+                
+                // Clear iteration counter
+                this.iteration = 0;
+                this.iterationEl.textContent = '0';
+                
+                // Clear all robots from the grid
+                for (let y = 0; y < this.gridSize; y++) {
+                    for (let x = 0; x < this.gridSize; x++) {
+                        if (this.grid[y][x].type === 'robot') {
+                            this.grid[y][x].type = 'empty';
+                            this.grid[y][x].robot = null;
+                        }
+                    }
+                }
+                
+                // Clear robots array
+                this.robots = [];
+                
+                // Calculate robots per corner
+                const robotsPerCorner = Math.ceil(this.robotCount / corners.length);
+                
+                // Place robots in each specified corner
+                let robotsPlaced = 0;
+                
+                for (const corner of corners) {
+                    // Skip if we've placed all robots
+                    if (robotsPlaced >= this.robotCount) break;
+                    
+                    // Define corner coordinates
+                    let startX, startY, dirX, dirY;
+                    
+                    switch (corner) {
+                        case 'top-left':
+                            startX = 0; startY = 0;
+                            dirX = 1; dirY = 1;
+                            break;
+                        case 'top-right':
+                            startX = this.gridSize - 1; startY = 0;
+                            dirX = -1; dirY = 1;
+                            break;
+                        case 'bottom-left':
+                            startX = 0; startY = this.gridSize - 1;
+                            dirX = 1; dirY = -1;
+                            break;
+                        case 'bottom-right':
+                            startX = this.gridSize - 1; startY = this.gridSize - 1;
+                            dirX = -1; dirY = -1;
+                            break;
+                    }
+                    
+                    // Calculate corner size for robot placement
+                    const cornerSize = Math.ceil(Math.sqrt(robotsPerCorner));
+                    const cornerRobots = Math.min(robotsPerCorner, this.robotCount - robotsPlaced);
+                    let cornersRobotsPlaced = 0;
+                    
+                    // Place robots in a square pattern from the corner
+                    for (let i = 0; i < cornerSize && cornersRobotsPlaced < cornerRobots; i++) {
+                        for (let j = 0; j < cornerSize && cornersRobotsPlaced < cornerRobots; j++) {
+                            // Calculate the position
+                            const x = startX + (j * dirX);
+                            const y = startY + (i * dirY);
+                            
+                            // Check if position is valid
+                            if (x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize) {
+                                // Skip cells that contain walls
+                                if (this.grid[y][x].type === 'wall') continue;
+                                
+                                // Create and place a robot
+                                const robot = { id: robotsPlaced, x, y };
+                                this.robots.push(robot);
+                                this.grid[y][x].type = 'robot';
+                                this.grid[y][x].robot = robot;
+                                robotsPlaced++;
+                                cornersRobotsPlaced++;
+                            }
+                        }
+                    }
+                }
+                
+                // Render the updated grid
+                this.render();
+            }
+            
+            render() {
+                // Clear all cells
+                const cells = this.gridEl.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    cell.innerHTML = '';
+                    cell.classList.remove('wall');
+                });
+                
+                // Render walls
+                for (let y = 0; y < this.gridSize; y++) {
+                    for (let x = 0; x < this.gridSize; x++) {
+                        const cell = this.gridEl.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+                        
+                        if (this.grid[y][x].type === 'wall') {
+                            cell.classList.add('wall');
+                        } else if (this.grid[y][x].type === 'robot') {
+                            const robotEl = document.createElement('div');
+                            robotEl.className = 'robot';
+                            cell.appendChild(robotEl);
+                        }
+                    }
+                }
+            }
+            
+            start() {
+                if (this.intervalId) return;
+                
+                this.intervalId = setInterval(() => {
+                    this.update();
+                    this.render();
+                    this.iteration++;
+                    this.iterationEl.textContent = this.iteration;
+                }, this.speed);
+            }
+            
+            stop() {
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                }
+            }
+            
+            update() {
+                // Calculate best move for each robot
+                const moves = [];
+                
+                for (const robot of this.robots) {
+                    const bestMove = this.findBestMove(robot);
+                    if (bestMove) {
+                        moves.push({ robot, newX: bestMove.x, newY: bestMove.y });
+                    }
+                }
+                
+                // Sort moves randomly to avoid bias
+                moves.sort(() => Math.random() - 0.5);
+                
+                // Execute moves
+                for (const move of moves) {
+                    const { robot, newX, newY } = move;
+                    
+                    // Check if target cell is still empty
+                    if (this.grid[newY][newX].type === 'empty') {
+                        // Remove robot from old position
+                        this.grid[robot.y][robot.x].type = 'empty';
+                        this.grid[robot.y][robot.x].robot = null;
+                        
+                        // Place robot at new position
+                        robot.x = newX;
+                        robot.y = newY;
+                        this.grid[newY][newX].type = 'robot';
+                        this.grid[newY][newX].robot = robot;
+                    }
+                }
+            }
+            
+            findBestMove(robot) {
+                const possibleMoves = [];
+                
+                // Add current position as a possible move
+                possibleMoves.push({ x: robot.x, y: robot.y, isCurrentPosition: true });
+                
+                // Check all 8 directions
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue; // Skip current position (already added)
+                        
+                        const newX = robot.x + dx;
+                        const newY = robot.y + dy;
+                        
+                        // Check if in bounds and empty
+                        if (newX >= 0 && newX < this.gridSize && 
+                            newY >= 0 && newY < this.gridSize && 
+                            this.grid[newY][newX].type === 'empty') {
+                            possibleMoves.push({ x: newX, y: newY, isCurrentPosition: false });
+                        }
+                    }
+                }
+                
+                if (possibleMoves.length === 0) {
+                    return null; // No valid moves
+                }
+                
+                // Calculate score for each move (higher score = better)
+                const scoredMoves = possibleMoves.map(move => {
+                    let minDistance = Infinity;
+                    
+                    // Find minimum distance to any other robot
+                    for (const otherRobot of this.robots) {
+                        if (otherRobot.id === robot.id) continue;
+                        
+                        const distance = Math.sqrt(
+                            Math.pow(move.x - otherRobot.x, 2) + 
+                            Math.pow(move.y - otherRobot.y, 2)
+                        );
+                        
+                        minDistance = Math.min(minDistance, distance);
+                    }
+                    
+                    return { ...move, score: minDistance };
+                });
+                
+                // Sort by score (highest score first)
+                scoredMoves.sort((a, b) => b.score - a.score);
+                
+                // Get the best move
+                const bestMove = scoredMoves[0];
+                
+                // If staying put is the best option, return null to indicate no movement
+                if (bestMove.isCurrentPosition) {
+                    return null;
+                }
+                
+                // Return the best move
+                return bestMove;
+            }
+        }
+        
+        // Initialize simulation
+        const simulation = new Simulation();
+    </script>
+</body>
+</html>
