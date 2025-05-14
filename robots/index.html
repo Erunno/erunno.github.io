@@ -53,8 +53,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
-            overflow: auto;
+            padding: 40px;
+            overflow: hidden; /* Change from auto to hidden to prevent scrollbars */
         }
         
         #grid {
@@ -66,6 +66,7 @@
             background-color: white;
             border-radius: 4px;
             box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            margin: 20px; /* Add margin to create space around the grid */
         }
         
         .cell {
@@ -356,15 +357,15 @@
             updateGridSize() {
                 // Get available space in the content area
                 const contentArea = document.querySelector('.content');
-                const availableWidth = contentArea.clientWidth - 40; // 40px for padding
-                const availableHeight = contentArea.clientHeight - 40;
+                const availableWidth = contentArea.clientWidth - 80; // 40px padding on each side
+                const availableHeight = contentArea.clientHeight - 80; // 40px padding on each side
                 
                 // Calculate the maximum cell size that fits within the available space
                 const maxCellSizeWidth = Math.floor(availableWidth / this.gridSize);
                 const maxCellSizeHeight = Math.floor(availableHeight / this.gridSize);
                 
                 // Use the smaller dimension to ensure the grid fits in both directions
-                this.cellSize = Math.max(5, Math.min(maxCellSizeWidth, maxCellSizeHeight));
+                this.cellSize = Math.max(2, Math.min(maxCellSizeWidth, maxCellSizeHeight));
                 
                 // Update the grid CSS
                 this.gridEl.style.gridTemplateColumns = `repeat(${this.gridSize}, ${this.cellSize}px)`;
@@ -376,6 +377,11 @@
                     cell.style.width = `${this.cellSize}px`;
                     cell.style.height = `${this.cellSize}px`;
                 });
+                
+                // Center the grid in the content area
+                const gridWidth = this.gridSize * this.cellSize;
+                const gridHeight = this.gridSize * this.cellSize;
+                this.gridEl.style.margin = `${Math.max(10, (availableHeight - gridHeight) / 2)}px ${Math.max(10, (availableWidth - gridWidth) / 2)}px`;
             }
             
             createGrid() {
