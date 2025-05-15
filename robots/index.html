@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robot Simulation</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
             --primary: #3498db;
@@ -54,38 +55,34 @@
             justify-content: center;
             align-items: center;
             padding: 40px;
-            overflow: hidden; /* Change from auto to hidden to prevent scrollbars */
+            overflow: hidden;
         }
         
-        #grid {
-            display: grid;
-            gap: 1px;
-            background-color: #eee;
-            width: fit-content;
+        #simulation {
             border: 1px solid var(--border);
             background-color: white;
             border-radius: 4px;
             box-shadow: 0 0 10px rgba(0,0,0,0.05);
-            margin: 20px; /* Add margin to create space around the grid */
-        }
-        
-        .cell {
-            background-color: white;
-            border: 1px solid #ccc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .robot {
-            background-color: var(--primary);
-            border-radius: 50%;
-            width: 80%;
-            height: 80%;
+            position: relative;
         }
         
         .wall {
-            background-color: var(--dark);
+            fill: var(--dark);
+        }
+        
+        .robot {
+            fill: var(--primary);
+            transition-property: cx, cy, r;
+            transition-timing-function: ease-out;
+        }
+        
+        .robot.no-transition {
+            transition: none !important;
+        }
+        
+        .grid-line {
+            stroke: #eee;
+            stroke-width: 1px;
         }
         
         .panel {
@@ -187,24 +184,6 @@
         
         /* Mobile Styles */
         @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                max-height: 40vh;
-                order: 2;
-            }
-            
-            .content {
-                order: 1;
-                height: 60vh;
-            }
-            
-            .params {
-                grid-template-columns: 1fr 1fr;
-            }
         }
     </style>
 </head>
@@ -259,7 +238,7 @@
         </div>
         
         <div class="content">
-            <div id="grid"></div>
+            <div id="simulation"></div>
         </div>
     </div>
     
@@ -274,17 +253,37 @@
                 this.speed = 500;
                 this.iteration = 0;
                 this.intervalId = null;
-                this.cellSize = 30; // Default cell size in pixels
+                this.cellSize = 10; // Default cell size in pixels
+                
+                // SVG and D3 elements
+                this.simulationContainer = d3.select('#simulation');
+                this.svg = null;
+                this.gridLines = null;
+                this.walls = null;
+                this.robotElements = null;
                 
                 // HTML elements
-                this.gridEl = document.getElementById('grid');
                 this.iterationEl = document.getElementById('iteration');
                 this.startBtn = document.getElementById('startBtn');
                 
-                // Add window resize handler
+                // Improve window resize handler with debouncing
+                let resizeTimer;
                 window.addEventListener('resize', () => {
-                    this.updateGridSize();
-                    this.render();
+                    clearTimeout(resizeTimer);
+                    
+                    // Disable transitions before resize
+                    this.disableRobotTransitions();
+                    
+                    resizeTimer = setTimeout(() => {
+                        this.updateCanvasSize();
+                        this.updateWallPositions();
+                        this.renderRobots();
+                        
+                        // Re-enable transitions after rendering with a short delay
+                        setTimeout(() => {
+                            this.enableRobotTransitions();
+                        }, 50);
+                    }, 100);
                 });
                 
                 // Initialize controls
@@ -308,10 +307,7 @@
                 robotCountInput.addEventListener('change', () => this.reset());
                 wallCountInput.addEventListener('change', () => this.reset());
                 speedInput.addEventListener('change', () => {
-                    // For speed changes, just update the speed without a full reset
                     this.speed = parseInt(speedInput.value);
-                    
-                    // If animation is running, restart it with the new speed
                     if (this.intervalId) {
                         this.stop();
                         this.start();
@@ -347,6 +343,12 @@
                 this.iteration = 0;
                 this.iterationEl.textContent = '0';
                 
+                // Initialize the simulation area
+                this.initSimulation();
+                
+                // Update canvas size before creating grid lines
+                this.updateCanvasSize();
+                
                 // Create grid
                 this.createGrid();
                 this.placeWalls();
@@ -354,11 +356,13 @@
                 this.render();
             }
             
-            updateGridSize() {
+            updateCanvasSize() {
                 // Get available space in the content area
                 const contentArea = document.querySelector('.content');
-                const availableWidth = contentArea.clientWidth - 80; // 40px padding on each side
-                const availableHeight = contentArea.clientHeight - 80; // 40px padding on each side
+                // Use fixed padding values regardless of grid size
+                const padding = 40;
+                const availableWidth = contentArea.clientWidth - (padding * 2);
+                const availableHeight = contentArea.clientHeight - (padding * 2);
                 
                 // Calculate the maximum cell size that fits within the available space
                 const maxCellSizeWidth = Math.floor(availableWidth / this.gridSize);
@@ -367,21 +371,90 @@
                 // Use the smaller dimension to ensure the grid fits in both directions
                 this.cellSize = Math.max(2, Math.min(maxCellSizeWidth, maxCellSizeHeight));
                 
-                // Update the grid CSS
-                this.gridEl.style.gridTemplateColumns = `repeat(${this.gridSize}, ${this.cellSize}px)`;
-                this.gridEl.style.gridTemplateRows = `repeat(${this.gridSize}, ${this.cellSize}px)`;
+                // Set SVG dimensions
+                const svgSize = this.gridSize * this.cellSize;
+                this.svg
+                    .attr('width', svgSize)
+                    .attr('height', svgSize);
                 
-                // Update cell sizes
-                const cells = this.gridEl.querySelectorAll('.cell');
-                cells.forEach(cell => {
-                    cell.style.width = `${this.cellSize}px`;
-                    cell.style.height = `${this.cellSize}px`;
-                });
+                // Apply fixed margins to center the grid
+                const simulationDiv = document.getElementById('simulation');
+                const horizontalMargin = Math.max(10, Math.floor((contentArea.clientWidth - svgSize) / 2));
+                const verticalMargin = Math.max(10, Math.floor((contentArea.clientHeight - svgSize) / 2));
+                simulationDiv.style.margin = `${verticalMargin}px ${horizontalMargin}px`;
                 
-                // Center the grid in the content area
-                const gridWidth = this.gridSize * this.cellSize;
-                const gridHeight = this.gridSize * this.cellSize;
-                this.gridEl.style.margin = `${Math.max(10, (availableHeight - gridHeight) / 2)}px ${Math.max(10, (availableWidth - gridWidth) / 2)}px`;
+                // Recreate grid lines with correct sizes
+                this.createGridLines();
+            }
+            
+            updateWallPositions() {
+                // Get current wall positions from the grid
+                const wallPositions = [];
+                for (let y = 0; y < this.gridSize; y++) {
+                    for (let x = 0; x < this.gridSize; x++) {
+                        if (this.grid[y][x].type === 'wall') {
+                            wallPositions.push({ x, y });
+                        }
+                    }
+                }
+                
+                // Remove and recreate wall elements with correct positions
+                this.walls.selectAll('*').remove();
+                
+                this.walls.selectAll('.wall')
+                    .data(wallPositions)
+                    .enter()
+                    .append('rect')
+                    .attr('class', 'wall')
+                    .attr('x', d => d.x * this.cellSize)
+                    .attr('y', d => d.y * this.cellSize)
+                    .attr('width', this.cellSize)
+                    .attr('height', this.cellSize);
+            }
+            
+            initSimulation() {
+                // Clear the simulation container
+                this.simulationContainer.html('');
+                
+                // Create SVG element
+                this.svg = this.simulationContainer
+                    .append('svg')
+                    .attr('width', this.gridSize * this.cellSize)
+                    .attr('height', this.gridSize * this.cellSize);
+                
+                // Create groups in correct z-order (bottom to top)
+                this.gridLines = this.svg.append('g').attr('class', 'grid-lines');
+                this.walls = this.svg.append('g').attr('class', 'walls');
+                this.robotElements = this.svg.append('g').attr('class', 'robots');
+            }
+            
+            createGridLines() {
+                // Remove existing grid lines
+                this.gridLines.selectAll('*').remove();
+                
+                // Create vertical lines
+                this.gridLines
+                    .selectAll('.grid-line-v')
+                    .data(d3.range(0, this.gridSize + 1))
+                    .enter()
+                    .append('line')
+                    .attr('class', 'grid-line grid-line-v')
+                    .attr('x1', d => d * this.cellSize)
+                    .attr('y1', 0)
+                    .attr('x2', d => d * this.cellSize)
+                    .attr('y2', this.gridSize * this.cellSize);
+                
+                // Create horizontal lines
+                this.gridLines
+                    .selectAll('.grid-line-h')
+                    .data(d3.range(0, this.gridSize + 1))
+                    .enter()
+                    .append('line')
+                    .attr('class', 'grid-line grid-line-h')
+                    .attr('x1', 0)
+                    .attr('y1', d => d * this.cellSize)
+                    .attr('x2', this.gridSize * this.cellSize)
+                    .attr('y2', d => d * this.cellSize);
             }
             
             createGrid() {
@@ -395,27 +468,11 @@
                     }
                     this.grid.push(row);
                 }
-                
-                // Set up grid CSS with responsive cell size
-                this.gridEl.innerHTML = '';
-                
-                // Create cell elements
-                for (let y = 0; y < this.gridSize; y++) {
-                    for (let x = 0; x < this.gridSize; x++) {
-                        const cell = document.createElement('div');
-                        cell.className = 'cell';
-                        cell.dataset.x = x;
-                        cell.dataset.y = y;
-                        this.gridEl.appendChild(cell);
-                    }
-                }
-                
-                // Update grid size to fit screen
-                this.updateGridSize();
             }
             
             placeWalls() {
                 let wallsPlaced = 0;
+                const wallPositions = [];
                 
                 while (wallsPlaced < this.wallCount) {
                     const x = Math.floor(Math.random() * this.gridSize);
@@ -423,9 +480,21 @@
                     
                     if (this.grid[y][x].type === 'empty') {
                         this.grid[y][x].type = 'wall';
+                        wallPositions.push({ x, y });
                         wallsPlaced++;
                     }
                 }
+                
+                // Add wall rectangles to the svg
+                this.walls.selectAll('.wall')
+                    .data(wallPositions)
+                    .enter()
+                    .append('rect')
+                    .attr('class', 'wall')
+                    .attr('x', d => d.x * this.cellSize)
+                    .attr('y', d => d.y * this.cellSize)
+                    .attr('width', this.cellSize)
+                    .attr('height', this.cellSize);
             }
             
             placeRobots() {
@@ -444,6 +513,8 @@
                         robotsPlaced++;
                     }
                 }
+                
+                this.renderRobots();
             }
             
             placeRobotsInCorners(corners) {
@@ -531,31 +602,44 @@
                 }
                 
                 // Render the updated grid
-                this.render();
+                this.renderRobots();
             }
             
             render() {
-                // Clear all cells
-                const cells = this.gridEl.querySelectorAll('.cell');
-                cells.forEach(cell => {
-                    cell.innerHTML = '';
-                    cell.classList.remove('wall');
-                });
+                this.renderRobots();
+            }
+            
+            renderRobots() {
+                // Calculate appropriate transition duration
+                // Use the simulation speed if it's less than 200ms, otherwise use 200ms
+                const transitionDuration = Math.min(this.speed, 200);
                 
-                // Render walls
-                for (let y = 0; y < this.gridSize; y++) {
-                    for (let x = 0; x < this.gridSize; x++) {
-                        const cell = this.gridEl.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
-                        
-                        if (this.grid[y][x].type === 'wall') {
-                            cell.classList.add('wall');
-                        } else if (this.grid[y][x].type === 'robot') {
-                            const robotEl = document.createElement('div');
-                            robotEl.className = 'robot';
-                            cell.appendChild(robotEl);
-                        }
-                    }
-                }
+                // Update robot transition duration in CSS
+                d3.selectAll('.robot')
+                    .style('transition-duration', `${transitionDuration}ms`);
+                
+                // Update the robot circles with D3
+                const robotSelection = this.robotElements
+                    .selectAll('.robot')
+                    .data(this.robots, d => d.id);
+                
+                // Enter: Add new robots
+                robotSelection.enter()
+                    .append('circle')
+                    .attr('class', 'robot')
+                    .style('transition-duration', `${transitionDuration}ms`)
+                    .attr('r', this.cellSize * 0.4)
+                    .attr('cx', d => (d.x + 0.5) * this.cellSize)
+                    .attr('cy', d => (d.y + 0.5) * this.cellSize);
+                
+                // Update: Move existing robots
+                robotSelection
+                    .attr('cx', d => (d.x + 0.5) * this.cellSize)
+                    .attr('cy', d => (d.y + 0.5) * this.cellSize)
+                    .attr('r', this.cellSize * 0.4);
+                
+                // Exit: Remove robots that no longer exist
+                robotSelection.exit().remove();
             }
             
             start() {
@@ -668,6 +752,14 @@
                 
                 // Return the best move
                 return bestMove;
+            }
+            
+            disableRobotTransitions() {
+                d3.selectAll('.robot').classed('no-transition', true);
+            }
+            
+            enableRobotTransitions() {
+                d3.selectAll('.robot').classed('no-transition', false);
             }
         }
         
