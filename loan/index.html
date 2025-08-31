@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Mortgage Calculator</h1>
+        
+        <div class="calculator">
+            <div class="input-group">
+                <label for="debt">Loan Amount</label>
+                <div class="input-wrapper">
+                    <input type="text" id="debt" placeholder="e.g., 200 000">
+                    <span class="currency">$</span>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="interest">Interest Rate (%)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="interest" placeholder="e.g., 3.5">
+                    <span class="percentage">%</span>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="years">Loan Term (Years)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="years" placeholder="e.g., 30">
+                    <span class="years">years</span>
+                </div>
+            </div>
+            
+            <div class="results">
+                <div class="result-item">
+                    <span class="result-label">Monthly Payment:</span>
+                    <span id="monthly-payment" class="result-value">$0</span>
+                </div>
+                
+                <div class="result-item">
+                    <span class="result-label">Total Payment:</span>
+                    <span id="total-payment" class="result-value">$0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
