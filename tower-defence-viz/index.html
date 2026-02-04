@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense Visualizer Pro</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --panel: #16213e;
+            --accent: #4ecca3;
+            --enemy: #e94560;
+            --tower: #0f3460;
+            --text: #e2e2e2;
+        }
+
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .wrapper { max-width: 1100px; margin: 0 auto; }
+        
+        h2 { text-align: center; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+
+        /* Input Section */
+        .input-area { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 25px; }
+        textarea { 
+            width: 100%; height: 120px; background: #0f3460; border: 1px solid #4ecca344; 
+            color: #fff; padding: 12px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 13px;
+            box-sizing: border-box; resize: vertical;
+        }
+
+        /* Controls */
+        .controls { 
+            display: flex; flex-wrap: wrap; gap: 15px; align-items: center; 
+            justify-content: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ffffff11;
+        }
+        button { 
+            padding: 10px 24px; cursor: pointer; background: var(--accent); color: #1a1a2e; 
+            border: none; border-radius: 6px; font-weight: bold; transition: all 0.2s; 
+        }
+        button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        button:disabled { background: #555; transform: none; cursor: not-allowed; }
+        
+        input[type="number"] {
+            background: #0f3460; border: 1px solid var(--accent); color: white;
+            padding: 8px; border-radius: 4px; width: 60px; text-align: center;
+        }
+
+        /* The Game Track */
+        .viewport { 
+            background: var(--panel); padding: 50px 20px; border-radius: 15px; 
+            overflow-x: auto; margin-top: 20px; border: 1px solid #ffffff11;
+        }
+        .track { 
+            display: flex; gap: 4px; min-width: max-content; padding-bottom: 20px;
+        }
+        .cell { 
+            width: 85px; min-height: 150px; background: #1a1a2e; border-radius: 8px;
+            position: relative; display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-end; padding: 10px 5px; border: 1px solid #ffffff05;
+        }
+        .cell.has-tower { background: #162447; border: 1px solid #4ecca333; }
+        .cell-idx { position: absolute; top: -30px; font-weight: bold; color: var(--accent); font-size: 14px; }
+
+        /* Entities */
+        .entity { 
+            width: 75px; border-radius: 6px; padding: 6px 4px; font-size: 11px; 
+            text-align: center; margin-bottom: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            animation: popIn 0.3s ease-out;
+        }
+        .tower { background: var(--accent); color: #1a1a2e; font-weight: 800; position: absolute; top: 10px; border: 2px solid #fff; }
+        .enemy { background: var(--enemy); color: white; border-left: 4px solid #950740; }
+        
+        .hp { font-family: monospace; font-weight: bold; display: block; margin-top: 3px; background: rgba(0,0,0,0.2); border-radius: 3px; }
+
+        .game-over-banner { 
+            color: var(--enemy); font-weight: bold; font-size: 20px; text-align: center; 
+            margin-bottom: 10px; text-transform: uppercase; animation: blink 1s infinite;
+        }
+
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h2>Tower Defense Engine Visualizer</h2>
+
+    <div class="input-area">
+        <textarea id="rawInput" placeholder="Paste your console output here..."></textarea>
+        <div class="controls">
+            <button id="parseBtn" style="background: #fff;">LOAD DATA</button>
+            <div style="width: 2px; height: 30px; background: #444; margin: 0 10px;"></div>
+            <button id="prevBtn" disabled>PREV</button>
+            <span id="stepInfo" style="min-width: 120px; text-align: center; font-weight: bold;">Step: 0 / 0</span>
+            <button id="nextBtn" disabled>NEXT</button>
+            <div style="margin-left: 20px;">
+                Track Length: <input type="number" id="trackLength" placeholder="Auto">
+            </div>
+        </div>
+    </div>
+
+    <div id="gameOverMsg" class="game-over-banner" style="display:none;">Game Over!</div>
+
+    <div id="visualizerArea" class="viewport" style="display:none;">
+        <div class="track" id="gameTrack"></div>
+    </div>
+</div>
+
+<script>
+    let states = [];
+    let currentIndex = 0;
+    let autoLength = 10;
+    let userManuallySetLength = false;
+
+    const parseBtn = document.getElementById('parseBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const rawInput = document.getElementById('rawInput');
+    const stepInfo = document.getElementById('stepInfo');
+    const gameTrack = document.getElementById('gameTrack');
+    const visualizerArea = document.getElementById('visualizerArea');
+    const trackLenInput = document.getElementById('trackLength');
+    const gameOverMsg = document.getElementById('gameOverMsg');
+
+    trackLenInput.oninput = () => { userManuallySetLength = !!trackLenInput.value; };
+
+    parseBtn.onclick = () => {
+        const text = rawInput.value;
+        states = parseStates(text);
+        
+        if (states.length > 0) {
+            if (!userManuallySetLength) {
+                // Guess length: Find max position in all states
+                let maxPos = 9; // Default 10 (0-9)
+                states.forEach(s => {
+                    s.enemies.forEach(e => { if(e.pos > maxPos) maxPos = e.pos; });
+                    s.towers.forEach(t => { if(t.pos > maxPos) maxPos = t.pos; });
+                });
+                autoLength = maxPos + 1;
+                trackLenInput.value = autoLength;
+            }
+            
+            currentIndex = 0;
+            visualizerArea.style.display = 'block';
+            renderState();
+        } else {
+            alert("No valid 'Enemies:' or 'Towers:' blocks found.");
+        }
+    };
+
+    prevBtn.onclick = () => { if (currentIndex > 0) { currentIndex--; renderState(); } };
+    nextBtn.onclick = () => { if (currentIndex < states.length - 1) { currentIndex++; renderState(); } };
+
+    function parseStates(text) {
+        const blocks = [];
+        const lines = text.split('\n').map(l => l.trim().replace(/^>\s*/, ''));
+        let currentState = null;
+        let mode = null;
+
+        lines.forEach(line => {
+            if (line.startsWith('Enemies:')) {
+                if (currentState) blocks.push(currentState);
+                currentState = { enemies: [], towers: [], gameOver: false };
+                mode = 'E';
+            } else if (line.startsWith('Towers:')) {
+                mode = 'T';
+            } else if (line.startsWith('[')) {
+                if (mode === 'E') {
+                    const match = line.match(/\[(.*?):\s*HP=(-?\d+),\s*Pos=(\d+)\]/);
+                    if (match) currentState.enemies.push({ name: match[1], hp: match[2], pos: parseInt(match[3]) });
+                } else if (mode === 'T') {
+                    const match = line.match(/\[(.*?) at Pos=(\d+)\]/);
+                    if (match) currentState.towers.push({ name: match[1], pos: parseInt(match[2]) });
+                }
+            } else if (line.toLowerCase().includes('game over')) {
+                if (currentState) currentState.gameOver = true;
+            }
+        });
+        if (currentState) blocks.push(currentState);
+        return blocks;
+    }
+
+    function renderState() {
+        const state = states[currentIndex];
+        const displayLen = parseInt(trackLenInput.value) || autoLength;
+        gameTrack.innerHTML = '';
+        
+        stepInfo.innerText = `Step: ${currentIndex + 1} / ${states.length}`;
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex === states.length - 1;
+        gameOverMsg.style.display = state.gameOver ? 'block' : 'none';
+
+        for (let i = 0; i < displayLen; i++) {
+            const towerAtPos = state.towers.find(t => t.pos === i);
+            const cell = document.createElement('div');
+            cell.className = 'cell' + (towerAtPos ? ' has-tower' : '');
+            cell.innerHTML = `<div class="cell-idx">${i}</div>`;
+            
+            if (towerAtPos) {
+                const tDiv = document.createElement('div');
+                tDiv.className = 'entity tower';
+                tDiv.innerText = towerAtPos.name.toUpperCase();
+                cell.appendChild(tDiv);
+            }
+
+            state.enemies.filter(e => e.pos === i).forEach(e => {
+                const eDiv = document.createElement('div');
+                eDiv.className = 'entity enemy';
+                eDiv.innerHTML = `<strong>${e.name}</strong><span class="hp">HP: ${e.hp}</span>`;
+                cell.appendChild(eDiv);
+            });
+
+            gameTrack.appendChild(cell);
+        }
+    }
+</script>
+
+</body>
+</html>
