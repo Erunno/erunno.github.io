@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Tram Departures</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-weight: bold; margin-bottom: 0.5rem; }
+        input { width: 100%; padding: 0.5rem; box-sizing: border-box; margin-bottom: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        button:hover { background: #0056b3; }
+        #results { margin-top: 2rem; }
+        .tram-card { background: #f9f9f9; border-left: 4px solid #ff4500; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; }
+        .tram-head { font-size: 1.1em; margin-bottom: 0.25rem; }
+        .tram-meta { color: #555; font-size: 0.9em; }
+        .loading { color: #666; font-style: italic; }
+        .error { color: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Live Tram Departures</h2>
+    
+    <div class="form-group">
+        <label for="apiKey">Golemio API Token:</label>
+        <input type="text" id="apiKey" placeholder="eyJhbGciOiJIUzI1NiIs...">
+    </div>
+    
+    <div class="form-group">
+        <label for="stationName">Station Name (e.g., Malostranske namesti):</label>
+        <input type="text" id="stationName" value="Malostranské náměstí">
+    </div>
+
+    <div class="form-group">
+        <label for="platformCode">Platform (e.g., A, B - optional):</label>
+        <input type="text" id="platformCode" placeholder="Leave blank to show all platforms">
+    </div>
+
+    <div class="form-group">
+        <label for="tramLines">Tram Lines (comma-separated, e.g. 22, 12):</label>
+        <input type="text" id="tramLines" placeholder="Leave blank to show all lines">
+    </div>
+    
+    <button id="fetchDataBtn">Check Departures</button>
+
+    <div id="results"></div>
+
+    <script src="code.js"></script>
+</body>
+</html>
