@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hlasová Osmisměrka</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container" id="app-content" style="display: none;">
+        <header>
+            <h1>Osmisměrka</h1>
+            <div class="controls">
+                <div id="transcript-box" class="transcript">Zatím nic neslyším...</div>
+                <div id="mic-status" class="status stopped">Připravuji...</div>
+            </div>
+        </header>
+        
+        <main>
+            <div id="grid" class="grid-container"></div>
+            <aside>
+                <h2>Slova k nalezení:</h2>
+                <ul id="word-list"></ul>
+            </aside>
+        </main>
+    </div>
+
+    <div class="container" id="dashboard-content" style="display: none;">
+        <header>
+            <h1>Skvělá práce!</h1>
+            <div class="controls">
+                <div id="dash-transcript-box" class="transcript">Zatím nic neslyším...</div>
+                <div class="status listening">Řekni: "Nová hra"</div>
+            </div>
+        </header>
+        <main class="dashboard-main">
+            <div class="stats-panel">
+                <h2 id="current-level" style="font-size: 4rem; margin: 0; color: #2e7d32;">Úroveň 1</h2>
+                <p id="total-games" style="font-size: 2rem; margin-bottom: 5px;">Celkem vyřešeno: 0</p>
+                
+                <div class="time-stats">
+                    <p>Čas: <span id="current-time-display">--</span></p>
+                    <p>Průměr: <span id="avg-time-display">--</span></p>
+                </div>
+            </div>
+            
+            <h3 style="font-size: 2rem; align-self: flex-start;">Tvá aktivita (posledních 12 týdnů):</h3>
+            <div id="heatmap" class="heatmap-container"></div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
