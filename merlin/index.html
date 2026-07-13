@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Merlin AI - Clinical Inference Console</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <aside class="sidebar" id="sidebar-drawer">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <i class="fa-solid fa-wand-magic-sparkles brand-icon"></i>
+                    <h2>Merlin<span>.ai</span></h2>
+                </div>
+                <button class="close-sidebar-btn" id="close-sidebar" aria-label="Close settings">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="section-title">Execution Mode</div>
+            <div class="options-group">
+                <label class="option-card active">
+                    <input type="radio" name="merlin-task" value="radiology_report" checked>
+                    <div class="option-content">
+                        <i class="fa-solid fa-file-medical"></i>
+                        <div>
+                            <span class="option-label">Radiology Report</span>
+                            <span class="option-desc">Generate narrative clinical findings</span>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="option-card">
+                    <input type="radio" name="merlin-task" value="five_year_risk">
+                    <div class="option-content">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                        <div>
+                            <span class="option-label">5-Year Risk Forecast</span>
+                            <span class="option-desc">Predict chronic health risks</span>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="option-card">
+                    <input type="radio" name="merlin-task" value="phenotype_classification">
+                    <div class="option-content">
+                        <i class="fa-solid fa-dna"></i>
+                        <div>
+                            <span class="option-label">Phenotype Mapping</span>
+                            <span class="option-desc">Classify specific ICD-10 traits</span>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="option-card">
+                    <input type="radio" name="merlin-task" value="zero_shot_findings">
+                    <div class="option-content">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+                        <div>
+                            <span class="option-label">Zero-Shot Query</span>
+                            <span class="option-desc">Isolate specific abnormalities</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="section-title">Active Volumetric Context</div>
+            <div class="upload-zone" id="drop-zone">
+                <input type="file" id="file-input" accept=".nii,.gz" hidden>
+                <i class="fa-solid fa-box-tissue upload-icon"></i>
+                <p id="upload-text">Tap or drag 3D scan<br><span>Accepts .nii.gz or .nii</span></p>
+                <div class="file-pill hidden" id="file-pill">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span id="file-name">patient_scan.nii.gz</span>
+                    <i class="fa-solid fa-xmark remove-btn" id="remove-file"></i>
+                </div>
+            </div>
+        </aside>
+
+        <main class="workspace">
+            <header class="workspace-header">
+                <div class="header-left">
+                    <button class="menu-toggle-btn" id="menu-toggle" aria-label="Open settings">
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                    <div class="status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span id="node-status" class="desktop-only">Connected to GPU Cluster Node</span>
+                        <span id="node-status-mobile" class="mobile-only">GPU Cluster Active</span>
+                    </div>
+                </div>
+                <div class="system-meta">
+                    <span class="badge">96GB Blackwell</span>
+                </div>
+            </header>
+
+            <div class="conversation-flow" id="chat-history">
+                <div class="system-welcome">
+                    <i class="fa-solid fa-shield-heart welcome-logo"></i>
+                    <h3>Merlin Clinical Session</h3>
+                    <p>Load a volumetric NIfTI dataset and query the vision-language model for automated evaluation.</p>
+                </div>
+            </div>
+
+            <footer class="input-stack">
+                <div class="input-container">
+                    <textarea id="prompt-input" placeholder="Type instructions for the model..." rows="1"></textarea>
+                    <button id="send-btn" disabled aria-label="Send query">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
+                </div>
+            </footer>
+        </main>
+    </div>
+    <script src="code.js"></script>
+</body>
+</html>
